@@ -5,8 +5,19 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "jeb.refmap.json",
   "mixins": [
+    "ClientRecipeBookMixin",
+    "RecipeBookResultsMixin",
+    "ServerRecipeBookMixin"
   ],
   "client": [
+    "AbstractCraftingRecipeBookWidgetMixin",
+    "AnimatedResultButtonMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "RecipeAlternativesWidgetMixin",
+    "RecipeBookResultsAccessor",
+    "RecipeBookWidgetAccessor",
+    "RecipeBookWidgetSearchMixin",
+    "RecipeResultCollectionMixin"
   ],
   "injectors": {
     "defaultRequire": 1
