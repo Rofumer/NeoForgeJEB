@@ -35,6 +35,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -257,10 +258,10 @@ public class Jeb {
         Runtime.getRuntime().addShutdownHook(new Thread(Jeb::saveConfig));
 
         // Сброс данных при заходе на сервер
-        //NeoForge.EVENT_BUS.addListener((ClientConnectedToServerEvent e) -> {
-        //    recipesLoaded = false;
-        //    existingResultItems.clear();
-        //});
+        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn e) -> {
+            recipesLoaded = false;
+            existingResultItems.clear();
+        });
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);

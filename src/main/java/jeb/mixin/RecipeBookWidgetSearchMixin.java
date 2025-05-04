@@ -137,7 +137,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     }
 
 
-    @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void jeb$clickCustomToggle(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         if (jeb$customToggleButton != null && jeb$customToggleButton.mouseClicked(mouseX, mouseY, button)) {
             jeb$customToggleState = !jeb$customToggleState;

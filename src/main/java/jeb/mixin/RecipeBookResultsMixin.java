@@ -4,6 +4,7 @@ import jeb.accessor.ClientRecipeBookAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.*;
 import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.item.crafting.RecipeBookCategory;
 import net.minecraft.world.item.crafting.display.*;
 import net.minecraft.network.protocol.game.ServerboundRecipeBookSeenRecipePacket;
 import net.minecraft.client.ClientRecipeBook;
@@ -16,7 +17,9 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -47,19 +50,21 @@ public class RecipeBookResultsMixin {
             method = "mouseClicked",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screens/recipebook/OverlayRecipeComponent;mouseClicked(DDI)Z",
+                    target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeButton;mouseClicked(DDI)Z",
                     shift = At.Shift.AFTER
             ),
             cancellable = true
+
     )
     private void onRightClickInject(
-            double mouseX, double mouseY, int button, int x, int y, int width, int height,
-            CallbackInfoReturnable<Boolean> cir) {
+            double mouseX, double mouseY, int button, int x, int y, int width, int height, CallbackInfoReturnable<Boolean> cir
+    ) {
 
         ContextMap context = SlotDisplayContext.fromLevel(Minecraft.getInstance().level);
         RecipeButton hovered = this.hoveredButton;
 
-        if (overlay.mouseClicked(mouseX, mouseY, button)) {
+        //if (hovered.mouseClicked(mouseX, mouseY, button)) {
+        if (hovered != null) {
 
             if (button == 1) {
                 ItemStack stack = hovered.getDisplayStack();
