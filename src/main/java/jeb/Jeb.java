@@ -59,6 +59,12 @@ import java.util.*;
 public class Jeb {
 
 
+    public static Set<Item> existingResultItems = new HashSet<>();
+
+    public static boolean recipesLoaded = false;
+
+    public static boolean customToggleEnabled = true;
+
     public static List<RecipeCollection> PREGENERATED_RECIPES = generateCustomRecipeList("");
 
     public static List<RecipeCollection> generateCustomRecipeList(String filter) {
@@ -196,12 +202,7 @@ public class Jeb {
 
 
 
-    public static Set<Item> existingResultItems = new HashSet<>();
 
-    public static boolean recipesLoaded = false;
-
-    public static boolean customToggleEnabled = true;
-    private static KeyMapping keyBinding;
     // Define mod id in a common place for everything to reference
     public static final String MODID = "jeb";
     // Directly reference a slf4j logger
@@ -226,9 +227,41 @@ public class Jeb {
         output.accept(EXAMPLE_ITEM.get()); // Add the example item to the tab. For your own tabs, this method is preferred over the event
     }).build());
 
-    // The constructor for the mod class is the first code that is run when your mod is loaded.
+    /*
+    @OnlyIn(Dist.CLIENT)
+    @Mod.EventBusSubscriber(modid = Jeb.MODID, value = Dist.CLIENT)
+    public static class ClientInit {
+
+        @SubscribeEvent
+        public static void onClientSetup(FMLClientSetupEvent event) {
+            event.enqueueWork(() -> {
+                // Загрузка конфигурации
+                JEBClient.loadConfig();
+                Runtime.getRuntime().addShutdownHook(new Thread(JEBClient::saveConfig));
+
+                // Сброс данных при заходе на сервер
+                NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.network.ClientConnectedToServerEvent e) -> {
+                    recipesLoaded = false;
+                    existingResultItems.clear();
+                });
+            });
+        }*/
+
+
+        // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
     public Jeb(IEventBus modEventBus, ModContainer modContainer) {
+
+
+        Jeb.loadConfig();
+        Runtime.getRuntime().addShutdownHook(new Thread(Jeb::saveConfig));
+
+        // Сброс данных при заходе на сервер
+        //NeoForge.EVENT_BUS.addListener((ClientConnectedToServerEvent e) -> {
+        //    recipesLoaded = false;
+        //    existingResultItems.clear();
+        //});
+
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
 
@@ -253,7 +286,7 @@ public class Jeb {
     }
 
     public void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        keyBinding = new KeyMapping(
+        KeyMapping keyBinding = new KeyMapping(
                 "Optional recipes loading screen",
                 GLFW.GLFW_KEY_APOSTROPHE,
                 "JEB (Just Enough Book)"

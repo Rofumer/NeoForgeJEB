@@ -572,7 +572,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
     @Inject(method = "updateCollections", at = @At("HEAD"), cancellable = true)
     private void onCustomSearch(boolean resetCurrentPage, boolean filteringCraftable, CallbackInfo ci) {
-        String string = searchBox.toString();
+        String string = searchBox.getValue();
         boolean searchIngredients = string.startsWith("#");
         String query = (searchIngredients ? string.substring(1) : string).toLowerCase();
 

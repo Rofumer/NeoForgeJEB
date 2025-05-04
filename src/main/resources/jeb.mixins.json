@@ -6,8 +6,7 @@
   "refmap": "jeb.refmap.json",
   "mixins": [
     "ClientRecipeBookMixin",
-    "RecipeBookResultsMixin",
-    "ServerRecipeBookMixin"
+    "RecipeBookResultsMixin"
   ],
   "client": [
     "AbstractCraftingRecipeBookWidgetMixin",
