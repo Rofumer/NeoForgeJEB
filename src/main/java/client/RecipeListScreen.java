@@ -1,7 +1,9 @@
 // RecipeListScreen.java — экран загрузки рецептов, адаптирован для NeoForge
 package client;
 
+import com.microsoft.aad.msal4j.IClientAssertion;
 import com.mojang.logging.LogUtils;
+import jeb.Jeb;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -11,6 +13,9 @@ import org.slf4j.Logger;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static client.RecipeLoader.loadRecipesFromLog;
+import static jeb.Jeb.generateCustomRecipeList;
 
 //import static jeb.client.JEBClient.generateCustomRecipeList;
 //import static jeb.client.RecipeLoader.loadRecipesFromLog;
@@ -32,9 +37,9 @@ public class RecipeListScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.literal("Load All Recipes"), button -> {
             try {
                 loadAllRecipes();
-                //JEBClient.PREGENERATED_RECIPES = generateCustomRecipeList("");
+                Jeb.PREGENERATED_RECIPES = generateCustomRecipeList("");
                 Minecraft.getInstance().setScreen(null);
-                //Minecraft.getInstance().player.sendSystemMessage(Component.literal("All recipes have been loaded"));
+                Minecraft.getInstance().gui.getChat().addMessage(Component.literal("All recipes have been loaded"));
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -43,7 +48,7 @@ public class RecipeListScreen extends Screen {
 
     public void loadAllRecipes() throws InterruptedException {
         try {
-            //loadRecipesFromLog();
+            loadRecipesFromLog();
             Thread.sleep(1000);
             LOGGER.info("Recipes loaded successfully.");
         } catch (Exception e) {

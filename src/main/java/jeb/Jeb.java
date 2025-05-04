@@ -286,8 +286,10 @@ public class Jeb {
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
 
+    private static KeyMapping keyBinding;
+
     public void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        KeyMapping keyBinding = new KeyMapping(
+        keyBinding = new KeyMapping(
                 "Optional recipes loading screen",
                 GLFW.GLFW_KEY_APOSTROPHE,
                 "JEB (Just Enough Book)"
@@ -295,15 +297,15 @@ public class Jeb {
         event.register(keyBinding);
     }
 
-    /*@SubscribeEvent
-    public void onClientTick(ClientTickEvent event) {
+    @SubscribeEvent
+    public void onClientTick(ClientTickEvent.Post event) {
         Minecraft client = Minecraft.getInstance();
         if (keyBinding != null && keyBinding.consumeClick()) {
             if (client.screen == null) {
                 client.setScreen(new client.RecipeListScreen());
             }
         }
-    }*/
+    }
 
 
 
