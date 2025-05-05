@@ -541,7 +541,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         }
 
         // Проверка на имя мода
-        if (modName != null && !modName.isEmpty() && !BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace().equalsIgnoreCase(modName)) {
+        if (modName != null && !modName.isEmpty() && !BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace().contains(modName)) {
             return false;  // Не принадлежит указанному моду
         }
 
