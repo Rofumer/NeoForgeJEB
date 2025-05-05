@@ -298,24 +298,24 @@ public class RecipeLoader {
 
 
                         //1.21.5
-                        /*if (patternEntry != null) {
-                            resultSlot = new SlotDisplay.SmithingTrimSlotDisplay(
+                        if (patternEntry != null) {
+                            resultSlot = new SlotDisplay.SmithingTrimDemoSlotDisplay(
                                     new SlotDisplay.TagSlotDisplay(baseTagKey),
                                     new SlotDisplay.TagSlotDisplay(materialTagKey),
                                     patternEntry
                             );
-                        }*/
+                        }
                         //
                     }
                     //1.21.4
-                    else  {
+                    /*else  {
                         patternId = trimResultMatcher.group(6);
                         resultSlot = new SlotDisplay.SmithingTrimDemoSlotDisplay(
                                 new SlotDisplay.TagSlotDisplay(baseTagKey),
                                 new SlotDisplay.TagSlotDisplay(materialTagKey),
                                 new SlotDisplay.Composite(List.of(new SlotDisplay.ItemStackSlotDisplay(new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.fromNamespaceAndPath("minecraft", patternId)))))));
 
-                    }
+                    }*/
                     //
 
                 }

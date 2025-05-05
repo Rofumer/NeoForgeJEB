@@ -287,6 +287,7 @@ public class Jeb {
     }
 
     private static KeyMapping keyBinding;
+    public static KeyMapping keyBinding2;
 
     public void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         keyBinding = new KeyMapping(
@@ -295,6 +296,13 @@ public class Jeb {
                 "JEB (Just Enough Book)"
         );
         event.register(keyBinding);
+
+        keyBinding2 = new KeyMapping(
+                "Add/remove favorite recipes",
+                GLFW.GLFW_KEY_A,
+                "JEB (Just Enough Book)"
+        );
+        event.register(keyBinding2);
     }
 
     @SubscribeEvent

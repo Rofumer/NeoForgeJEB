@@ -253,7 +253,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         // Проверка на нужную клавишу (например, клавиша G, keyCode = 71)
-        if (keyCode == GLFW.GLFW_KEY_A) {
+        if (Jeb.keyBinding2 != null && keyCode == Jeb.keyBinding2.getKey().getValue()){
             RecipeButton hovered = ((RecipeBookResultsAccessor) recipeBookPage).getHoveredResultButton();
             if (hovered != null) {
                 //System.out.println("Над кнопкой: " + hovered.getDisplayStack().getItem().toString());
