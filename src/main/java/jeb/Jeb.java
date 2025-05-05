@@ -66,7 +66,7 @@ public class Jeb {
 
     public static boolean customToggleEnabled = true;
 
-    public static List<RecipeCollection> PREGENERATED_RECIPES = generateCustomRecipeList("");
+    public static List<RecipeCollection> PREGENERATED_RECIPES;
 
     public static List<RecipeCollection> generateCustomRecipeList(String filter) {
         List<RecipeCollection> list = new ArrayList<>();
@@ -112,18 +112,16 @@ public class Jeb {
 
             boolean tooltip_bool = false;
 
-
-            if (client.level != null)
-            {
+            if (client.level != null) {
                 // Поиск по тултипам
                 TooltipFlag tooltipFlag = client.options.advancedItemTooltips ? TooltipFlag.Default.ADVANCED : TooltipFlag.Default.NORMAL;
 
 
                 try {
-                    List<Component> tooltip = item.getDefaultInstance().getTooltipLines(Item.TooltipContext.of(client.level),client.player, tooltipFlag);
+                    List<Component> tooltip = item.getDefaultInstance().getTooltipLines(Item.TooltipContext.of(client.level), client.player, tooltipFlag);
                     for (Component line : tooltip) {
                         String clean = net.minecraft.ChatFormatting.stripFormatting(line.getString()).toLowerCase(Locale.ROOT).trim();
-                        if (clean.contains(query)){
+                        if (clean.contains(query)) {
                             tooltip_bool = true;
                         }
                     }
@@ -133,6 +131,7 @@ public class Jeb {
                 }
 
             }
+
 
             if (!(name.contains(query) || id_item.contains(query) || key.contains(query) || tooltip_bool)) continue;
             ///////if (!(name.contains(query) || id_item.contains(query) || key.contains(query))) continue;
@@ -166,10 +165,8 @@ public class Jeb {
         return list;
     }
 
-    private static final Path CONFIG_PATH = Paths.get(
-            Minecraft.getInstance().gameDirectory.getAbsolutePath(),
-            "config", "JEB.json"
-    );
+    public static Path CONFIG_PATH;
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static void loadConfig() {
@@ -281,6 +278,7 @@ public class Jeb {
         // Register the item to a creative tab
         modEventBus.addListener(this::addCreative);
         modEventBus.addListener(this::onRegisterKeyMappings);
+        modEventBus.addListener(this::onClientSetup);
 
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
@@ -315,7 +313,15 @@ public class Jeb {
         }
     }
 
+    public void onClientSetup(FMLClientSetupEvent event) {
 
+        PREGENERATED_RECIPES = generateCustomRecipeList("");
+        CONFIG_PATH = Paths.get(
+                Minecraft.getInstance().gameDirectory.getAbsolutePath(),
+                "config", "JEB.json"
+        );
+
+    }
 
 
     private void commonSetup(final FMLCommonSetupEvent event) {
