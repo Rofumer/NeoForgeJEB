@@ -2,7 +2,9 @@ package jeb.mixin;
 
 import client.RecipeLoader;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.client.ClientRecipeBook;
@@ -21,8 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-import static jeb.Jeb.existingResultItems;
-import static jeb.Jeb.recipesLoaded;
+import static jeb.Jeb.*;
 
 @Mixin(ClientPacketListener.class)
 public abstract class ClientPlayNetworkHandlerMixin {
@@ -118,7 +119,14 @@ public abstract class ClientPlayNetworkHandlerMixin {
 
             }
 
+            for (Item item : BuiltInRegistries.ITEM) {
+                if (item == Items.AIR) continue;
+                if (existingResultItems.contains(item)) continue;
+                nonexistingResultItems.add(item);
+            }
+
         }
+
 
 }
 

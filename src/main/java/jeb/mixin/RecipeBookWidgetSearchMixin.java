@@ -9,11 +9,15 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.inventory.RecipeBookType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeBookCategories;
+import net.minecraft.world.item.crafting.RecipeBookCategory;
 import net.minecraft.world.item.crafting.display.*;
 import net.minecraft.client.gui.screens.recipebook.*;
 import net.minecraft.client.ClientRecipeBook;
@@ -41,6 +45,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 
 import java.util.*;
+
+import static jeb.Jeb.emptysearch;
+import static jeb.Jeb.string;
+import static jeb.Jeb.filtered;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> implements RecipeBookWidgetBridge {
@@ -570,67 +578,135 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         return false;
     }
 
+
+    private static RecipeDisplayEntry createDummySingleItemRecipe(ItemStack stack) {
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        RecipeDisplayId recipeId = new RecipeDisplayId(9999);
+
+        List<SlotDisplay> slots = List.of(
+                new SlotDisplay.TagSlotDisplay(TagKey.create(Registries.ITEM, id))
+        );
+        SlotDisplay.ItemStackSlotDisplay resultSlot = new SlotDisplay.ItemStackSlotDisplay(stack.copy());
+        SlotDisplay.ItemSlotDisplay stationSlot =
+                new SlotDisplay.ItemSlotDisplay(BuiltInRegistries.ITEM.getValue(ResourceLocation.fromNamespaceAndPath("minecraft", "crafting_table")));
+
+        RecipeDisplay display = new ShapelessCraftingRecipeDisplay(slots, resultSlot, stationSlot);
+        OptionalInt group = OptionalInt.empty();
+        RecipeBookCategory category = RecipeBookCategories.CRAFTING_MISC;
+        List<Ingredient> ingredients = List.of(Ingredient.of(stack.getItem()));
+
+        return new RecipeDisplayEntry(recipeId, display, group, category, Optional.of(ingredients));
+    }
+
     @Inject(method = "updateCollections", at = @At("HEAD"), cancellable = true)
     private void onCustomSearch(boolean resetCurrentPage, boolean filteringCraftable, CallbackInfo ci) {
-        String string = searchBox.getValue();
-        boolean searchIngredients = string.startsWith("#");
-        String query = (searchIngredients ? string.substring(1) : string).toLowerCase();
+        String rawInput = searchBox.getValue();
+        if (rawInput != null && rawInput.trim().isEmpty() && emptysearch != null && !emptysearch.isEmpty())
+        {
+            recipeBookPage.updateCollections(emptysearch, resetCurrentPage, filteringCraftable);
+            ci.cancel();
+        }
+
+        if (rawInput == null) rawInput = "";
+        boolean searchIngredients = rawInput.startsWith("#");
+        boolean searchByResult = rawInput.startsWith("~");
+        String query = (searchIngredients || searchByResult ? rawInput.substring(1) : rawInput).toLowerCase(Locale.ROOT);
 
         String modName = null;
-        if (string.startsWith("@")) {
-            int endIndex = string.indexOf(" ");
+        if (rawInput.startsWith("@")) {
+            int endIndex = rawInput.indexOf(" ");
             if (endIndex != -1) {
-                modName = string.substring(1, endIndex).trim();
-                query = string.substring(endIndex + 1).toLowerCase();
+                modName = rawInput.substring(1, endIndex).trim();
+                query = rawInput.substring(endIndex + 1).toLowerCase(Locale.ROOT);
             } else {
-                modName = string.substring(1).trim();
+                modName = rawInput.substring(1).trim();
                 query = "";
             }
         }
 
-        //ClientPlayNetworkHandler handler = client.getNetworkHandler();
-        //if (handler == null) return;
+        List<RecipeCollection> collections = book.getCollection(selectedTab.getCategory());
+        List<RecipeCollection> filteredList = new ArrayList<>();
 
-        List<RecipeCollection> originalList = book.getCollection(selectedTab.getCategory());
-        List<RecipeCollection> filteredList = Lists.newArrayList();
-
-        // === Если на вкладке избранного (используем CAMPFIRE как временную категорию) ===
-        if (isFavoritesTabActive()) {
-            originalList = book.getCollection(SearchRecipeBookCategory.CRAFTING);
-
-            Set<ResourceLocation> favoriteItems = FavoritesManager.loadFavoriteItemIds();
-
+        if (rawInput.startsWith("~") && !isFavoritesTabActive()) {
             ContextMap context = SlotDisplayContext.fromLevel(
                     Objects.requireNonNull(minecraft.level)
             );
 
-            List<RecipeCollection> matching = null;
-            for (RecipeCollection collection : originalList) {
-                matching = new ArrayList<>();
-                for (RecipeDisplayEntry entry : collection.getRecipes()) {
+            List<RecipeCollection> ingredientsList = new ArrayList<>();
+            // query уже без ~, приведён к lowerCase
 
-                    List<ItemStack> stacks = entry.resultItems(context);
-                    if (!stacks.isEmpty()) {
-                        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stacks.get(0).getItem());
-                        if (favoriteItems.contains(itemId)) {
-                            matching.add(new RecipeCollection(List.of(entry)));
+            // Проходим по всем коллекциям рецептов из выбранной вкладки
+            for (RecipeCollection collection : book.getCollection(selectedTab.getCategory())) {
+                for (RecipeDisplayEntry recipe : collection.getRecipes()) {
+                    // Новый способ получения результата рецепта в 1.21.5:
+                    SlotDisplay resultSlot = recipe.display().result();
+
+
+                    List<ItemStack> stacks = resultSlot.resolveForStacks(context);
+                    ItemStack result = stacks.get(0);
+                    //String resultName = result.getItem().toString().toLowerCase(Locale.ROOT);
+                    String resultName = BuiltInRegistries.ITEM.getKey(result.getItem()).getPath().toLowerCase(Locale.ROOT);
+
+                    if (resultName.equals(query)) {
+                        for (Ingredient ingredient : recipe.craftingRequirements().get()) {
+                            // getItems() — возвращает ItemStack[]
+                            for (ItemStack stack : ingredient.display().resolveForStacks(context)) {
+                                if (!stack.isEmpty()) {
+                                    // Проверяем: есть ли коллекция рецептов, где результат — этот ингредиент?
+                                    boolean foundReal = false;
+                                    for (RecipeCollection subCollection : book.getCollection(SearchRecipeBookCategory.CRAFTING)) {
+                                        for (RecipeDisplayEntry subRecipe : subCollection.getRecipes()) {
+
+                                            resultSlot = subRecipe.display().result();
+
+
+                                            stacks = resultSlot.resolveForStacks(context);
+                                            ItemStack subResult = stacks.get(0);
+
+                                            //ItemStack subResult = subRecipe.getResultItem(client.world != null ? client.world.registryAccess() : null);
+                                            if (!subResult.isEmpty() && ItemStack.isSameItem(subResult, stack)) {
+                                                ingredientsList.add(subCollection);
+                                                foundReal = true;
+                                                break;
+                                            }
+                                        }
+                                        if (foundReal) break;
+                                    }
+                                    // Если не нашли реального рецепта — добавляем фейковую коллекцию
+                                    if (!foundReal) {
+                                        RecipeDisplayEntry fakeRecipe = createDummySingleItemRecipe(stack);
+                                        ingredientsList.add(new RecipeCollection(List.of(fakeRecipe)));
+                                    }
+                                    break; // только один stack из одного ingredient
+                                }
+                            }
                         }
                     }
                 }
-
-                if(!matching.isEmpty()) {
-                    filteredList.add(collection);
-                }
-
             }
 
-            //if (!matching.isEmpty()) {
-            //    filteredList.addAll(matching);
-            //}
+            filteredList.addAll(ingredientsList);
+            recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
+            ci.cancel();
+            return;
+        }
 
-            //if (filteringCraftable) {
-            //    filteredList.removeIf(rc -> !rc.hasCraftableRecipes());
-            //}
+        // === Favorites Tab ===
+        if (isFavoritesTabActive()) {
+            collections = book.getCollection(SearchRecipeBookCategory.CRAFTING);
+            Set<ResourceLocation> favoriteItems = FavoritesManager.loadFavoriteItemIds();
+            ContextMap context = SlotDisplayContext.fromLevel(Objects.requireNonNull(minecraft.level));
+
+            for (RecipeCollection collection : collections) {
+                boolean hasFavorite = collection.getRecipes().stream()
+                        .flatMap(entry -> entry.resultItems(context).stream())
+                        .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()))
+                        .anyMatch(favoriteItems::contains);
+
+                if (hasFavorite) {
+                    filteredList.add(collection);
+                }
+            }
 
             recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
             ci.cancel();
@@ -638,36 +714,44 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         }
 
         // === Обычный поиск ===
-        for (RecipeCollection collection : originalList) {
+        final String finalQuery = query;
+        final String finalModName = modName;
+
+        for (RecipeCollection collection : collections) {
             if (!collection.hasAnySelected()) continue;
 
-            for (RecipeDisplayEntry entry : collection.getRecipes()) {
-                boolean match;
-                if (searchIngredients) {
-                    match = recipeDisplayMatchesIngredientQuery(entry, query);
-                } else {
-                    match = recipeResultMatchesQuery(entry, query, modName);
-                }
-                if (match) {
-                    filteredList.add(collection);
-                    break;
-                }
+            boolean found = collection.getRecipes().stream().anyMatch(entry ->
+                    searchIngredients
+                            ? recipeDisplayMatchesIngredientQuery(entry, finalQuery)
+                            : recipeResultMatchesQuery(entry, finalQuery, finalModName)
+            );
+            if (found) {
+                filteredList.add(collection);
             }
         }
-
-        //if(jeb$customToggleState) {
-        //    filteredList.removeIf((resultCollection) -> !resultCollection.hasDisplayableRecipes());
-        //}
 
         if (filteringCraftable) {
             filteredList.removeIf(rc -> !rc.hasCraftable());
         }
 
-        filteredList.addAll(Jeb.generateCustomRecipeList(string));
+        if(!Objects.equals(string,rawInput))
+        {
+            filtered = Jeb.generateCustomRecipeList(rawInput);
+        }
+
+        filteredList.addAll(filtered);
+
+        if (rawInput != null && rawInput.trim().isEmpty() && emptysearch.isEmpty())
+        {
+                emptysearch = filteredList;
+        }
+
+        string=rawInput;
 
         recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
         ci.cancel();
     }
+
 
 
 

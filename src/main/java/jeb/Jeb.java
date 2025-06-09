@@ -62,6 +62,12 @@ public class Jeb {
 
     public static Set<Item> existingResultItems = new HashSet<>();
 
+    public static Set<Item> nonexistingResultItems = new HashSet<>();
+
+    public static String string = "-";
+    public static List<RecipeCollection> filtered = new ArrayList<>();
+    public static List<RecipeCollection> emptysearch = new ArrayList<>();
+
     public static boolean recipesLoaded = false;
 
     public static boolean customToggleEnabled = true;
@@ -69,101 +75,97 @@ public class Jeb {
     public static List<RecipeCollection> PREGENERATED_RECIPES;
 
     public static List<RecipeCollection> generateCustomRecipeList(String filter) {
-        List<RecipeCollection> list = new ArrayList<>();
-
+        List<RecipeCollection> result = new ArrayList<>();
         Minecraft client = Minecraft.getInstance();
 
-        String query;
-
+        String query = "";
         String modName = null;
         if (filter.startsWith("@")) {
-            // Извлекаем имя мода, если оно присутствует в начале строки
             int endIndex = filter.indexOf(" ");
             if (endIndex != -1) {
-                modName = filter.substring(1, endIndex).trim();  // Извлекаем имя мода
-                query = filter.substring(endIndex + 1).toLowerCase();  // Остальная часть это обычный запрос
+                modName = filter.substring(1, endIndex).trim();
+                query = filter.substring(endIndex + 1).toLowerCase(Locale.ROOT);
             } else {
-                modName = filter.substring(1).trim();  // Имя мода без строки запроса
-                query = "";  // Если нет строки запроса, то фильтровать только по имени мода
+                modName = filter.substring(1).trim();
             }
-        }
-        else
-        {
-            query = filter.toLowerCase();
+        } else {
+            query = filter.toLowerCase(Locale.ROOT);
         }
 
-        for (Item item : BuiltInRegistries.ITEM) {
+        TooltipFlag tooltipFlag = client.options.advancedItemTooltips ? TooltipFlag.Default.ADVANCED : TooltipFlag.Default.NORMAL;
+
+        //for (Item item : BuiltInRegistries.ITEM) {
+        for (Item item : nonexistingResultItems) {
+            //if (item == Items.AIR || existingResultItems.contains(item)) continue;
             if (item == Items.AIR) continue;
-            if (existingResultItems.contains(item)) continue;
 
+            // Проверка по имени мода
+            if (modName != null && !modName.isEmpty() &&
+                    !BuiltInRegistries.ITEM.getKey(item).getNamespace().contains(modName.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
 
+            // Быстрые проверки по имени, id, translation key
             String name = item.getName().getString().toLowerCase(Locale.ROOT);
-            String id_item = item.toString().toLowerCase(Locale.ROOT);
+            String idString = item.toString().toLowerCase(Locale.ROOT);
             String key = "";
-            Component nameComponent = item.getName(); // или getDisplayName()
+            Component nameComponent = item.getName();
             if (nameComponent.getContents() instanceof TranslatableContents translatable) {
                 key = translatable.getKey().toLowerCase(Locale.ROOT);
             }
 
-            if (modName != null && !modName.isEmpty() && !BuiltInRegistries.ITEM.getKey(item).getNamespace().contains(modName.toLowerCase(Locale.ROOT))) {
-                continue;
-            }
+            boolean matches = query.isEmpty()
+                    || name.contains(query)
+                    || idString.contains(query)
+                    || key.contains(query);
 
-
-            boolean tooltip_bool = false;
-
-            if (client.level != null) {
-                // Поиск по тултипам
-                TooltipFlag tooltipFlag = client.options.advancedItemTooltips ? TooltipFlag.Default.ADVANCED : TooltipFlag.Default.NORMAL;
-
-
+            // Проверка по тултипу, только если не нашли совпадение
+            if (!matches && query.length() >= 3 && client.level != null) {
                 try {
                     List<Component> tooltip = item.getDefaultInstance().getTooltipLines(Item.TooltipContext.of(client.level), client.player, tooltipFlag);
                     for (Component line : tooltip) {
                         String clean = net.minecraft.ChatFormatting.stripFormatting(line.getString()).toLowerCase(Locale.ROOT).trim();
                         if (clean.contains(query)) {
-                            tooltip_bool = true;
+                            matches = true;
+                            break;
                         }
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    // Можно также записать лог или безопасно проигнорировать ошибку
                 }
-
             }
 
+            if (!matches) continue;
 
-            if (!(name.contains(query) || id_item.contains(query) || key.contains(query) || tooltip_bool)) continue;
-            ///////if (!(name.contains(query) || id_item.contains(query) || key.contains(query))) continue;
-
-
-            ///////if (!translate(item.getTranslationKey()).toLowerCase().contains(filter.toLowerCase())) continue;
-
-
-            ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
-            RecipeDisplayId recipeId = new RecipeDisplayId(9999);
-
-            List<SlotDisplay> slots = List.of(
-                    new SlotDisplay.TagSlotDisplay(TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("minecraft", id.getPath())))
-            );
-
-            SlotDisplay.ItemStackSlotDisplay resultSlot = new SlotDisplay.ItemStackSlotDisplay(new ItemStack(item, 1));
-            Item ct = BuiltInRegistries.ITEM.getValue(ResourceLocation.fromNamespaceAndPath("minecraft", "crafting_table"));
-            ItemStack stack = new ItemStack(ct);
-            SlotDisplay.ItemStackSlotDisplay stationSlot = new SlotDisplay.ItemStackSlotDisplay(stack);
-
-            OptionalInt group = OptionalInt.empty();
-            RecipeBookCategory category = RecipeBookCategories.CRAFTING_MISC;
-
-            List<Ingredient> ingredients = List.of(Ingredient.of(item));
-
-            ShapelessCraftingRecipeDisplay display = new ShapelessCraftingRecipeDisplay(slots, resultSlot, stationSlot);
-            RecipeDisplayEntry entry = new RecipeDisplayEntry(recipeId, display, group, category, Optional.of(ingredients));
-            list.add(new RecipeCollection(List.of(entry)));
+            // Генерация "фейкового" рецепта
+            result.add(createDummyRecipeCollection(item));
         }
 
-        return list;
+        return result;
     }
+
+    private static RecipeCollection createDummyRecipeCollection(Item item) {
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+        RecipeDisplayId recipeId = new RecipeDisplayId(9999);
+
+        List<SlotDisplay> slots = List.of(
+                new SlotDisplay.TagSlotDisplay(TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("minecraft", id.getPath())))
+        );
+
+        SlotDisplay.ItemStackSlotDisplay resultSlot = new SlotDisplay.ItemStackSlotDisplay(new ItemStack(item, 1));
+        Item ct = BuiltInRegistries.ITEM.getValue(ResourceLocation.fromNamespaceAndPath("minecraft", "crafting_table"));
+        SlotDisplay.ItemStackSlotDisplay stationSlot = new SlotDisplay.ItemStackSlotDisplay(new ItemStack(ct));
+
+        List<Ingredient> ingredients = List.of(Ingredient.of(item));
+
+        ShapelessCraftingRecipeDisplay display = new ShapelessCraftingRecipeDisplay(slots, resultSlot, stationSlot);
+        OptionalInt group = OptionalInt.empty();
+        RecipeBookCategory category = RecipeBookCategories.CRAFTING_MISC;
+
+        RecipeDisplayEntry entry = new RecipeDisplayEntry(recipeId, display, group, category, Optional.of(ingredients));
+        return new RecipeCollection(List.of(entry));
+    }
+
 
     public static Path CONFIG_PATH;
 
@@ -258,6 +260,9 @@ public class Jeb {
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn e) -> {
             recipesLoaded = false;
             existingResultItems.clear();
+            nonexistingResultItems.clear();
+            string = "-";
+            emptysearch.clear();
         });
 
         // Register the commonSetup method for modloading
@@ -289,14 +294,14 @@ public class Jeb {
 
     public void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         keyBinding = new KeyMapping(
-                "Optional recipes loading screen",
+                "key.jeb.optional_recipes_loading_screen",
                 GLFW.GLFW_KEY_APOSTROPHE,
                 "JEB (Just Enough Book)"
         );
         event.register(keyBinding);
 
         keyBinding2 = new KeyMapping(
-                "Add/remove favorite recipes",
+                "key.jeb.add_remove_favorite_recipes",
                 GLFW.GLFW_KEY_A,
                 "JEB (Just Enough Book)"
         );

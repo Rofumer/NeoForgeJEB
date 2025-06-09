@@ -2,6 +2,7 @@ package jeb.mixin;
 
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
@@ -23,4 +24,9 @@ public interface RecipeBookWidgetAccessor {
     void jeb$refreshTabButtons(boolean filteringCraftable);
     @Invoker("selectMatchingRecipes")
     void jeb$populateAllRecipes();
+    @Accessor("selectedTab")
+    RecipeBookTabButton getSelectedTab();
+    @Accessor("selectedTab")
+    void setSelectedTab(RecipeBookTabButton tab);
+
 }
