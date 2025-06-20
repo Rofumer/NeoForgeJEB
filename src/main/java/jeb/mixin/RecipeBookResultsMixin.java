@@ -61,6 +61,11 @@ public class RecipeBookResultsMixin {
             double mouseX, double mouseY, int button, int x, int y, int width, int height, CallbackInfoReturnable<Boolean> cir
     ) {
 
+        if (!(Minecraft.getInstance().player.containerMenu instanceof AbstractCraftingMenu)) {
+            // Не наш контейнер — не трогаем, пусть работает обычный код!
+            return;
+        }
+
         ContextMap context = SlotDisplayContext.fromLevel(Minecraft.getInstance().level);
         RecipeButton hovered = this.hoveredButton;
 
