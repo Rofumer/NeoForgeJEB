@@ -23,7 +23,9 @@ public class AbstractCraftingRecipeBookWidgetMixin {
     private void alwaysDisplayRecipes(RecipeCollection p_363827_, StackedItemContents p_362085_, CallbackInfo ci) {
         // вызываем вручную с заменённым фильтром
 
-        if((((RecipeBookWidgetAccessor) this).getSearchField().isActive() && ((RecipeBookWidgetAccessor) this).getSearchField().isVisible() && ((RecipeBookWidgetAccessor) this).getSearchField().isFocused())) {
+        // Безопасно работаем с searchField
+        var searchField = ((RecipeBookWidgetAccessor) this).getSearchField();
+        if (searchField != null && searchField.isActive() && searchField.isVisible() && searchField.isFocused()) {
             ci.cancel();
         }
 
