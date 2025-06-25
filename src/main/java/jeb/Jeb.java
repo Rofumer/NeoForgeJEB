@@ -253,7 +253,7 @@ public class Jeb {
     public Jeb(IEventBus modEventBus, ModContainer modContainer) {
 
 
-        Jeb.loadConfig();
+        //Jeb.loadConfig();
         Runtime.getRuntime().addShutdownHook(new Thread(Jeb::saveConfig));
 
         // Сброс данных при заходе на сервер
@@ -325,6 +325,8 @@ public class Jeb {
                 Minecraft.getInstance().gameDirectory.getAbsolutePath(),
                 "config", "JEB.json"
         );
+
+        Jeb.loadConfig();
 
     }
 

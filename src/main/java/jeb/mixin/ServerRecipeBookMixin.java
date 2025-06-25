@@ -2,6 +2,7 @@ package jeb.mixin;
 
 
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ClientboundRecipeBookAddPacket;
 import net.minecraft.network.protocol.game.ClientboundRecipeBookSettingsPacket;
 import net.minecraft.resources.ResourceKey;
@@ -10,6 +11,7 @@ import net.minecraft.stats.RecipeBook;
 import net.minecraft.stats.ServerRecipeBook;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeSerializer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -45,6 +47,14 @@ public abstract class ServerRecipeBookMixin {
 
         for (RecipeHolder<?> recipeEntry : allRecipes) {
             ResourceKey<Recipe<?>> recipeKey = recipeEntry.id(); // ключ рецепта
+
+            Recipe<?> recipe = recipeEntry.value();
+            RecipeSerializer<?> serializer = recipe.getSerializer();
+
+            if (BuiltInRegistries.RECIPE_SERIALIZER.getId(serializer) == -1) {
+                System.out.println("[JEB Debug] Skipping unknown recipe serializer: " + serializer.getClass().getName());
+                continue;
+            }
 
             displayResolver.displaysForRecipe(recipeKey, display -> {
                 // Можно фильтровать, например, по display или recipeEntry
