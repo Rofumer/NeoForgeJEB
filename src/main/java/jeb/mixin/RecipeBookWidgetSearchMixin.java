@@ -739,7 +739,9 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             filtered = Jeb.generateCustomRecipeList(rawInput);
         }
 
-        filteredList.addAll(filtered);
+        if (!filterButton.isStateTriggered()) {
+            filteredList.addAll(filtered);
+        }
 
         if (rawInput != null && rawInput.trim().isEmpty() && emptysearch.isEmpty())
         {

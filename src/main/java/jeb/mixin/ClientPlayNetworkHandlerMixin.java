@@ -45,6 +45,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
 
         List<net.minecraft.world.item.ItemStack> stacks = resultSlot.resolveForStacks(context);
 
+        if (stacks.isEmpty()) {
+            System.err.println("Warning: Empty stacks for resultSlot in recipe " + clientboundrecipebookaddpacket$entry);
+            return; // или можно continue, если это цикл, или просто не делать ничего дальше
+        }
 
         net.minecraft.world.item.ItemStack stack = stacks.get(0);
 
@@ -108,7 +112,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
             // }
 
             if (knownRecipeCount < 1358 && craftingStationId == 259) {
-            //if (knownRecipeCount < 1358 && craftingStationId == 262) {
+            //if (knownRecipeCount < 1358 && craftingStationId == 262) { //1.21.6
 
                 try {
                     RecipeLoader.loadRecipesFromLog();
@@ -119,6 +123,8 @@ public abstract class ClientPlayNetworkHandlerMixin {
                 }
 
             }
+
+            nonexistingResultItems.clear();
 
             for (Item item : BuiltInRegistries.ITEM) {
                 if (item == Items.AIR) continue;
