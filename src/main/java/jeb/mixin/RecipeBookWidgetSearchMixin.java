@@ -1,5 +1,6 @@
 package jeb.mixin;
 
+import client.JebClient;
 import jeb.accessor.AnimatedResultButtonExtension;
 import jeb.accessor.ClientRecipeBookAccessor;
 import jeb.accessor.RecipeBookWidgetBridge;
@@ -46,9 +47,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.*;
 
-import static jeb.Jeb.emptysearch;
-import static jeb.Jeb.string;
-import static jeb.Jeb.filtered;
+import static client.JebClient.emptysearch;
+import static client.JebClient.string;
+import static client.JebClient.filtered;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> implements RecipeBookWidgetBridge {
@@ -115,7 +116,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         int y = this.filterButton.getY()+125;
 
         jeb$customToggleButton = new StateSwitchingButton(x, y, 20, 16, false);
-        if(Jeb.customToggleEnabled){
+        if(JebClient.customToggleEnabled){
             jeb$customToggleButton.setTooltip(Tooltip.create(Component.literal("Show 3x3")));
             jeb$customToggleButton.initTextureValues(TEXTURES_ALT);
         }
@@ -150,13 +151,13 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         if (jeb$customToggleButton != null && jeb$customToggleButton.mouseClicked(mouseX, mouseY, button)) {
             jeb$customToggleState = !jeb$customToggleState;
             jeb$customToggleButton.setStateTriggered(jeb$customToggleState);
-            Jeb.customToggleEnabled = !Jeb.customToggleEnabled;
+            JebClient.customToggleEnabled = !JebClient.customToggleEnabled;
 
-            Jeb.saveConfig();
+            JebClient.saveConfig();
             // Меняем текстуру в зависимости от состояния
-            jeb$customToggleButton.initTextureValues(Jeb.customToggleEnabled ? TEXTURES_ALT : TEXTURES_DEFAULT);
+            jeb$customToggleButton.initTextureValues(JebClient.customToggleEnabled ? TEXTURES_ALT : TEXTURES_DEFAULT);
 
-            jeb$customToggleButton.setTooltip(Jeb.customToggleEnabled ? Tooltip.create(Component.literal("Show 3x3")):Tooltip.create(Component.literal("Show 2x2")));
+            jeb$customToggleButton.setTooltip(JebClient.customToggleEnabled ? Tooltip.create(Component.literal("Show 3x3")):Tooltip.create(Component.literal("Show 2x2")));
 
             //System.out.println("Кастомная кнопка: " + (jeb$customToggleState ? "включена" : "выключена"));
 
@@ -261,7 +262,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         // Проверка на нужную клавишу (например, клавиша G, keyCode = 71)
-        if (Jeb.keyBinding2 != null && keyCode == Jeb.keyBinding2.getKey().getValue()){
+        if (JebClient.keyBinding2 != null && keyCode == JebClient.keyBinding2.getKey().getValue()){
             RecipeButton hovered = ((RecipeBookResultsAccessor) recipeBookPage).getHoveredResultButton();
             if (hovered != null) {
                 //System.out.println("Над кнопкой: " + hovered.getDisplayStack().getItem().toString());
@@ -736,7 +737,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
         if(!Objects.equals(string,rawInput))
         {
-            filtered = Jeb.generateCustomRecipeList(rawInput);
+            filtered = JebClient.generateCustomRecipeList(rawInput);
         }
 
         if (!filterButton.isStateTriggered()) {

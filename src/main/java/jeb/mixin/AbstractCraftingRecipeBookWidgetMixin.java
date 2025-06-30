@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.ArrayList;
 import java.util.List;
 
-import static jeb.Jeb.customToggleEnabled;
+import static client.JebClient.customToggleEnabled;
 
 @Mixin(CraftingRecipeBookComponent.class)
 public class AbstractCraftingRecipeBookWidgetMixin {

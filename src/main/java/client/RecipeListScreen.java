@@ -15,7 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static client.RecipeLoader.loadRecipesFromLog;
-import static jeb.Jeb.generateCustomRecipeList;
+import static client.JebClient.generateCustomRecipeList;
 
 //import static jeb.client.JEBClient.generateCustomRecipeList;
 //import static jeb.client.RecipeLoader.loadRecipesFromLog;
@@ -37,7 +37,7 @@ public class RecipeListScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.literal("Load All Recipes"), button -> {
             try {
                 loadAllRecipes();
-                Jeb.PREGENERATED_RECIPES = generateCustomRecipeList("");
+                JebClient.PREGENERATED_RECIPES = generateCustomRecipeList("");
                 Minecraft.getInstance().setScreen(null);
                 Minecraft.getInstance().gui.getChat().addMessage(Component.literal("All recipes have been loaded"));
             } catch (InterruptedException e) {

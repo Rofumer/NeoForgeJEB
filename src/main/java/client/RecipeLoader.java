@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.mojang.datafixers.TypeRewriteRule.orElse;
-import static jeb.Jeb.existingResultItems;
+import static client.JebClient.existingResultItems;
 
 public class RecipeLoader {
 
@@ -66,8 +66,8 @@ public class RecipeLoader {
     }
 
     public static void loadRecipesFromLog() throws IOException {
-        String name = "recipes_" + SharedConstants.getCurrentVersion().getName() + ".txt";
-        //String name = "recipes_" + SharedConstants.getCurrentVersion().name() + ".txt";
+        //String name = "recipes_" + SharedConstants.getCurrentVersion().getName() + ".txt";
+        String name = "recipes_" + SharedConstants.getCurrentVersion().name() + ".txt";
         try (InputStream input = RecipeLoader.class.getClassLoader().getResourceAsStream(name)) {
             if (input == null) {
                 System.err.println("Не удалось найти файл " + name + " в ресурсах");
@@ -962,7 +962,7 @@ public class RecipeLoader {
                 // Проверка, относится ли рецепт к верстаку
                 List<ItemStack> stations = entry.display().craftingStation().resolveForStacks(context);
                 if (!stations.isEmpty() && stations.get(0).is(Items.CRAFTING_TABLE)) {
-                    Jeb.existingResultItems.add(result.getItem());
+                    JebClient.existingResultItems.add(result.getItem());
                 }
             }
         }

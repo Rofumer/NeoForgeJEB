@@ -1,5 +1,6 @@
 package jeb.mixin;
 
+import client.JebClient;
 import client.RecipeLoader;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,6 +24,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
+import static client.JebClient.existingResultItems;
+import static client.JebClient.nonexistingResultItems;
 import static jeb.Jeb.*;
 
 @Mixin(ClientPacketListener.class)
@@ -66,7 +69,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
         @Inject(method = "handleRecipeBookAdd", at = @At("TAIL"))
         private void afterRecipeBookAdd(ClientboundRecipeBookAddPacket p_379950_, CallbackInfo ci) {
 
-            if(recipesLoaded) return;
+            if(client.JebClient.recipesLoaded) return;
 
             Minecraft client = Minecraft.getInstance();
 
@@ -111,12 +114,12 @@ public abstract class ClientPlayNetworkHandlerMixin {
             }
             // }
 
-            if (knownRecipeCount < 1358 && craftingStationId == 259) {
-            //if (knownRecipeCount < 1358 && craftingStationId == 262) { //1.21.6
+            //if (knownRecipeCount < 1358 && craftingStationId == 259) {
+            if (knownRecipeCount < 1358 && craftingStationId == 262) { //1.21.6
 
                 try {
                     RecipeLoader.loadRecipesFromLog();
-                    recipesLoaded = true;
+                    JebClient.recipesLoaded = true;
 
                 } catch (IOException e) {
                     throw new RuntimeException(e);

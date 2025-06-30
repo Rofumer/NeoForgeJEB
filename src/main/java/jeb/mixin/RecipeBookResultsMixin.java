@@ -127,7 +127,9 @@ public class RecipeBookResultsMixin {
                         recipeBook.removeHighlight(hovered.getCurrentRecipe());
                         var connection = Minecraft.getInstance().getConnection();
                         if (connection != null) {
-                            connection.send(new ServerboundRecipeBookSeenRecipePacket(hovered.getCurrentRecipe()));
+                            if(!(hovered.getCurrentRecipe().index() == 9999)) {
+                                connection.send(new ServerboundRecipeBookSeenRecipePacket(hovered.getCurrentRecipe()));
+                            }
                         }
 
                     }
