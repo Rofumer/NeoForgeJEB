@@ -127,6 +127,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
 
             }
 
+            if(knownRecipeCount >= 1358) {
+                JebClient.recipesLoaded = true;
+            }
+
             nonexistingResultItems.clear();
 
             for (Item item : BuiltInRegistries.ITEM) {
