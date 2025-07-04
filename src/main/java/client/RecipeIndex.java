@@ -37,7 +37,7 @@ public class RecipeIndex {
     public final Map<RecipeBookCategory, Map<String, List<RecipeCollection>>> byIngredientWord = new HashMap<>();
     public final Map<RecipeBookCategory, Map<String, List<RecipeCollection>>> byTooltipWord = new HashMap<>();
     public final Map<RecipeBookCategory, Set<RecipeCollection>> allCollections = new HashMap<>();
-    private static final Map<RecipeBookCategory, Map<Item, RecipeCollection>> GLOBAL_COLLECTIONS_BY_RESULT = new HashMap<>();
+    public static final Map<RecipeBookCategory, Map<Item, RecipeCollection>> GLOBAL_COLLECTIONS_BY_RESULT = new HashMap<>();
 
     public static final RecipeIndex GLOBAL_RECIPE_INDEX = new RecipeIndex();
     public static boolean jebIndexReady = false;
@@ -83,6 +83,17 @@ public class RecipeIndex {
         }
         return collection;
     }
+
+    public static boolean recipeExists(RecipeBookCategory category, RecipeDisplayEntry recipeEntry, ContextMap context) {
+        Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.get(category);
+        if (byItem == null) return false;
+        ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
+        if (result == null || result.isEmpty()) return false;
+        Item resultItem = result.getItem();
+        RecipeCollection collection = byItem.get(resultItem);
+        return collection != null && collection.getRecipes().contains(recipeEntry);
+    }
+
 
     // === Индексация ===
     public static void buildRecipeIndex() {
@@ -411,6 +422,52 @@ public class RecipeIndex {
         }
     }
 
+
+    public static boolean containsRecipeInIndex(RecipeBookCategory category, RecipeDisplayEntry recipeEntry) {
+        Map<String, List<RecipeCollection>> resultIndex = GLOBAL_RECIPE_INDEX.byResult.get(category);
+        if (resultIndex == null) return false;
+        ContextMap context = SlotDisplayContext.fromLevel(Objects.requireNonNull(Minecraft.getInstance().level));
+        ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
+        if (result == null || result.isEmpty()) return false;
+        String resultId = BuiltInRegistries.ITEM.getKey(result.getItem()).toString().toLowerCase(Locale.ROOT);
+        List<RecipeCollection> collections = resultIndex.get(resultId);
+        if (collections == null) return false;
+        for (RecipeCollection collection : collections) {
+            if (collection.getRecipes().contains(recipeEntry)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Проверяет наличие рецепта с тем же id в индексе для категории.
+     * Сравнивает по RecipeDisplayEntry.getId() — не по объекту!
+     */
+    public static boolean recipeIdExistsInIndex(RecipeBookCategory category, RecipeDisplayEntry recipeEntry) {
+        Map<String, List<RecipeCollection>> resultIndex = GLOBAL_RECIPE_INDEX.byResult.get(category);
+        if (resultIndex == null) return false;
+        ContextMap context = SlotDisplayContext.fromLevel(Objects.requireNonNull(Minecraft.getInstance().level));
+        ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
+        if (result == null || result.isEmpty()) return false;
+        String resultId = BuiltInRegistries.ITEM.getKey(result.getItem()).toString().toLowerCase(Locale.ROOT);
+        List<RecipeCollection> collections = resultIndex.get(resultId);
+        if (collections == null) return false;
+
+        String incomingId = recipeEntry.id().toString(); // или .asString() — смотри по типу
+
+        for (RecipeCollection collection : collections) {
+            for (RecipeDisplayEntry r : collection.getRecipes()) {
+                if (r.id().toString().equals(incomingId)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+
+
     public static void updateIndexesWithRecipe(
             RecipeBookCategory category,
             RecipeCollection collection,
@@ -503,4 +560,40 @@ public class RecipeIndex {
             }
         }
     }
+
+    public static boolean addRecipeToCollectionIfAbsent(
+            RecipeBookCategory category,
+            RecipeDisplayEntry recipeEntry,
+            ContextMap context
+    ) {
+        Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
+        ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
+        if (result == null || result.isEmpty()) return false;
+        Item resultItem = result.getItem();
+
+        RecipeCollection collection = byItem.get(resultItem);
+        if (collection == null) {
+            collection = new RecipeCollection(new ArrayList<>());
+            byItem.put(resultItem, collection);
+            RecipeIndex.GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>()).add(collection);
+        }
+        List<RecipeDisplayEntry> recipes = collection.getRecipes();
+
+        if (recipes.contains(recipeEntry)) {
+            return false; // Уже был такой рецепт!
+        }
+        try {
+            recipes.add(recipeEntry);
+        } catch (UnsupportedOperationException e) {
+            List<RecipeDisplayEntry> fixed = new ArrayList<>(recipes);
+            fixed.add(recipeEntry);
+            RecipeCollection newCollection = new RecipeCollection(fixed);
+            byItem.put(resultItem, newCollection);
+            Set<RecipeCollection> set = RecipeIndex.GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>());
+            set.remove(collection);
+            set.add(newCollection);
+        }
+        return true; // Был добавлен новый рецепт!
+    }
+
 }

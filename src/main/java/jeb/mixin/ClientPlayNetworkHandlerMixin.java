@@ -28,8 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import java.io.IOException;
 import java.util.*;
 
-import static client.JebClient.existingResultItems;
-import static client.JebClient.nonexistingResultItems;
+import static client.JebClient.*;
 import static client.RecipeIndex.*;
 
 
@@ -37,10 +36,10 @@ import static client.RecipeIndex.*;
 public abstract class ClientPlayNetworkHandlerMixin {
 
     @Unique
-    private static int jEB$knownRecipeCount = 0;
+    private static int knownRecipeCount = 0;
 
     @Unique
-    private static int jEB$craftingStationId = 0;
+    private static int craftingStationId = 0;
 
     @Unique
     private static final Map<String, Integer> VANILLA_RECIPE_COUNTS = Map.of(
@@ -69,20 +68,32 @@ public abstract class ClientPlayNetworkHandlerMixin {
                 Objects.requireNonNull(Minecraft.getInstance().level)
         );
 
-        if(client.JebClient.recipesLoaded) {
-        //if(1==0) {
-
+        if (client.JebClient.recipesLoaded) {
             RecipeBookCategory category = clientboundrecipebookaddpacket$entry.contents().category();
+            RecipeDisplayEntry entry = clientboundrecipebookaddpacket$entry.contents();
+            // Проверяем по id (по новому методу!)
+            if (!RecipeIndex.recipeIdExistsInIndex(category, entry)) {
+                // Добавляем (метод сам создаёт коллекцию при необходимости)
+                RecipeIndex.addRecipeToCollectionIfAbsent(category, entry, context);
 
-            RecipeCollection collection = findOrCreateCollectionFor(category, clientboundrecipebookaddpacket$entry.contents(), context);
-            if (collection == null) {
-                // Ошибка, не смогли создать коллекцию
-                return;
+                // Получаем нужную коллекцию (как показано выше)
+                Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
+                ItemStack result = entry.display().result().resolveForFirstStack(context);
+                if (result == null || result.isEmpty()) return;
+                Item resultItem = result.getItem();
+                RecipeCollection collection = byItem.get(resultItem);
+                if (collection == null) {
+                    collection = new RecipeCollection(new ArrayList<>());
+                    byItem.put(resultItem, collection);
+                    GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>()).add(collection);
+                }
+
+                // Индексируем
+                RecipeIndex.updateIndexesWithRecipe(category, collection, entry);
+                LOGGER.info("[JEB] The recipe has been added: {}", entry.display().result().resolveForFirstStack(context).toString());
             }
 
-            RecipeIndex.updateIndexesWithRecipe(category, collection, clientboundrecipebookaddpacket$entry.contents());
-
-            jebIndexReady = true;
+            return;
         }
 
         SlotDisplay resultSlot = clientboundrecipebookaddpacket$entry.contents().display().result();
@@ -147,10 +158,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
                     net.minecraft.world.item.ItemStack stack = stacks.getFirst();
 
 
-                    if (stack.getItem() == Items.CRAFTING_TABLE) jEB$craftingStationId =entry.id().index();
+                    if (stack.getItem() == Items.CRAFTING_TABLE) craftingStationId =entry.id().index();
 
 
-                    jEB$knownRecipeCount++;
+                    knownRecipeCount++;
 
                 }
 
@@ -158,7 +169,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
             // }
 
             //if (knownRecipeCount < 1358 && craftingStationId == 259) {
-            if (jEB$knownRecipeCount < vanillaMaxRecipes && jEB$craftingStationId == vanillaCTID) { //1.21.6
+            if (knownRecipeCount < vanillaMaxRecipes && craftingStationId == vanillaCTID) { //1.21.6
 
                 try {
                     RecipeLoader.loadRecipesFromLog();
@@ -172,7 +183,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
             }
 
 
-            if(jEB$knownRecipeCount >= vanillaMaxRecipes || (jEB$craftingStationId != vanillaCTID && jEB$craftingStationId !=0)) {  //for 1.21.6
+            if(knownRecipeCount >= vanillaMaxRecipes || (craftingStationId != vanillaCTID && craftingStationId !=0)) {  //for 1.21.6
                 JebClient.recipesLoaded = true;
                 buildRecipeIndex();
             }
