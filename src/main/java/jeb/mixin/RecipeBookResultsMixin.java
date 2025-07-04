@@ -84,7 +84,7 @@ public class RecipeBookResultsMixin {
 
             if (button == 1) {
                 ItemStack stack = hovered.getDisplayStack();
-                String itemName = stack.getItem().getName().getString(); // Локализованное имя (например, "Булыжник")
+                String itemName = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(); // Локализованное имя (например, "Булыжник")
                 String searchText = "#" + itemName.toLowerCase(Locale.ROOT);
 
 // Устанавливаем в поиск

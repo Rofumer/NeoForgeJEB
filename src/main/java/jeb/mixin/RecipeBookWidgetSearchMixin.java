@@ -1,18 +1,19 @@
 package jeb.mixin;
 
 import client.JebClient;
+import client.RecipeIndex;
 import jeb.accessor.AnimatedResultButtonExtension;
 import jeb.accessor.ClientRecipeBookAccessor;
 import jeb.accessor.RecipeBookWidgetBridge;
 import client.FavoritesManager;
-import jeb.Jeb;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.context.ContextMap;
-import net.minecraft.world.inventory.RecipeBookType;
+import net.minecraft.world.entity.player.StackedItemContents;
+import net.minecraft.world.inventory.AbstractCraftingMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -28,13 +29,10 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StateSwitchingButton;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.world.item.Item.TooltipContext;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import com.google.common.collect.Lists;
 import net.minecraft.world.inventory.RecipeBookMenu;
-import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -47,12 +45,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.*;
 
-import static client.JebClient.emptysearch;
-import static client.JebClient.string;
-import static client.JebClient.filtered;
+import static client.JebClient.*;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> implements RecipeBookWidgetBridge {
+
+    @Final
+    @Shadow protected RecipeBookMenu menu;
+
+    @Shadow @Final
+    private StackedItemContents stackedContents;
 
     // Это будет вызов приватного метода
     @Shadow
@@ -110,13 +112,19 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     );
 
 
+    @Inject(method = "recipesUpdated", at = @At("HEAD"), cancellable = true)
+    private void populateAllRecipes(CallbackInfo ci)
+    {
+        ci.cancel();
+    }
+
     @Inject(method = "initVisuals", at = @At("TAIL"))
     private void jeb$addCustomToggleButton(CallbackInfo ci) {
         int x = this.filterButton.getX();
         int y = this.filterButton.getY()+125;
 
         jeb$customToggleButton = new StateSwitchingButton(x, y, 20, 16, false);
-        if(JebClient.customToggleEnabled){
+        if(customToggleEnabled){
             jeb$customToggleButton.setTooltip(Tooltip.create(Component.literal("Show 3x3")));
             jeb$customToggleButton.initTextureValues(TEXTURES_ALT);
         }
@@ -151,13 +159,13 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         if (jeb$customToggleButton != null && jeb$customToggleButton.mouseClicked(mouseX, mouseY, button)) {
             jeb$customToggleState = !jeb$customToggleState;
             jeb$customToggleButton.setStateTriggered(jeb$customToggleState);
-            JebClient.customToggleEnabled = !JebClient.customToggleEnabled;
+            customToggleEnabled = !customToggleEnabled;
 
             JebClient.saveConfig();
             // Меняем текстуру в зависимости от состояния
-            jeb$customToggleButton.initTextureValues(JebClient.customToggleEnabled ? TEXTURES_ALT : TEXTURES_DEFAULT);
+            jeb$customToggleButton.initTextureValues(customToggleEnabled ? TEXTURES_ALT : TEXTURES_DEFAULT);
 
-            jeb$customToggleButton.setTooltip(JebClient.customToggleEnabled ? Tooltip.create(Component.literal("Show 3x3")):Tooltip.create(Component.literal("Show 2x2")));
+            jeb$customToggleButton.setTooltip(customToggleEnabled ? Tooltip.create(Component.literal("Show 3x3")):Tooltip.create(Component.literal("Show 2x2")));
 
             //System.out.println("Кастомная кнопка: " + (jeb$customToggleState ? "включена" : "выключена"));
 
@@ -602,11 +610,11 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     @Inject(method = "updateCollections", at = @At("HEAD"), cancellable = true)
     private void onCustomSearch(boolean resetCurrentPage, boolean filteringCraftable, CallbackInfo ci) {
         String rawInput = searchBox.getValue();
-        if (rawInput != null && rawInput.trim().isEmpty() && emptysearch != null && !emptysearch.isEmpty())
-        {
-            recipeBookPage.updateCollections(emptysearch, resetCurrentPage, filteringCraftable);
-            ci.cancel();
-        }
+        ///if (rawInput != null && rawInput.trim().isEmpty() && emptysearch != null && !emptysearch.isEmpty())
+        ///{
+        ///    recipeBookPage.updateCollections(emptysearch, resetCurrentPage, filteringCraftable);
+        ///    ci.cancel();
+        ///}
 
         if (rawInput == null) rawInput = "";
         boolean searchIngredients = rawInput.startsWith("#");
@@ -718,7 +726,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         final String finalQuery = query;
         final String finalModName = modName;
 
-        for (RecipeCollection collection : collections) {
+        /*for (RecipeCollection collection : collections) {
             if (!collection.hasAnySelected()) continue;
 
             boolean found = collection.getRecipes().stream().anyMatch(entry ->
@@ -729,6 +737,18 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             if (found) {
                 filteredList.add(collection);
             }
+        }*/
+
+        filteredList = new ArrayList<>(RecipeIndex.fastSearch(selectedTab.getCategory(),query, modName, searchIngredients));
+
+        for (RecipeCollection col : filteredList) {
+            if (customToggleEnabled) {
+                col.selectRecipes(stackedContents, recipe -> true);
+            }
+            else
+            {
+                col.selectRecipes(stackedContents, this::jEB$canDisplay);
+            }
         }
 
         if (filteringCraftable) {
@@ -737,17 +757,17 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
         if(!Objects.equals(string,rawInput))
         {
-            filtered = JebClient.generateCustomRecipeList(rawInput);
+            filtered = RecipeIndex.generateCustomRecipeList(rawInput);
         }
 
         if (!filterButton.isStateTriggered()) {
             filteredList.addAll(filtered);
         }
 
-        if (rawInput != null && rawInput.trim().isEmpty() && emptysearch.isEmpty())
-        {
-                emptysearch = filteredList;
-        }
+        ///if (rawInput != null && rawInput.trim().isEmpty() && emptysearch.isEmpty())
+        ///{
+        ///        emptysearch = filteredList;
+        ///}
 
         string=rawInput;
 
@@ -756,6 +776,24 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     }
 
 
+    @Unique
+    private boolean jEB$canDisplay(RecipeDisplay display) {
+        if (!(this.menu instanceof AbstractCraftingMenu craftingHandler)) {
+            // Если не является — всегда можно показывать
+            return true;
+        }
+
+        int i = craftingHandler.getGridWidth();
+        int j = craftingHandler.getGridHeight();
+
+        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
+            return i >= shaped.width() && j >= shaped.height();
+        } else if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
+            return i * j >= shapeless.ingredients().size();
+        } else {
+            return false;
+        }
+    }
 
 
 

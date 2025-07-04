@@ -26,6 +26,8 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import org.lwjgl.glfw.GLFW;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -34,10 +36,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-//@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
-@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
+@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+//@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
 public class JebClient {
-
+    public static final Logger LOGGER = LoggerFactory.getLogger("JEB");
     // --- Клиентские переменные и "кэш" ---
     public static Set<Item> existingResultItems = new HashSet<>();
     public static Set<Item> nonexistingResultItems = new HashSet<>();

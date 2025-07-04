@@ -9,8 +9,8 @@ import net.minecraft.client.Minecraft;
 
 import static client.JebClient.*;
 
-//@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.GAME)
-@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
+@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.GAME)
+//@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
 public class JebClientGameEvents {
 
     @SubscribeEvent
