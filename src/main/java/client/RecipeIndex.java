@@ -10,7 +10,6 @@ import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.context.ContextMap;
-import net.minecraft.world.inventory.RecipeBookType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -22,7 +21,6 @@ import net.minecraft.world.item.crafting.display.*;
 import net.minecraft.ChatFormatting;
 import org.spongepowered.asm.mixin.Unique;
 
-import java.awt.*;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.List;
@@ -561,14 +559,14 @@ public class RecipeIndex {
         }
     }
 
-    public static boolean addRecipeToCollectionIfAbsent(
+    public static void addRecipeToCollectionIfAbsent(
             RecipeBookCategory category,
             RecipeDisplayEntry recipeEntry,
             ContextMap context
     ) {
         Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
         ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
-        if (result == null || result.isEmpty()) return false;
+        if (result == null || result.isEmpty()) return;
         Item resultItem = result.getItem();
 
         RecipeCollection collection = byItem.get(resultItem);
@@ -580,7 +578,7 @@ public class RecipeIndex {
         List<RecipeDisplayEntry> recipes = collection.getRecipes();
 
         if (recipes.contains(recipeEntry)) {
-            return false; // Уже был такой рецепт!
+            return; // Уже был такой рецепт!
         }
         try {
             recipes.add(recipeEntry);
@@ -593,7 +591,6 @@ public class RecipeIndex {
             set.remove(collection);
             set.add(newCollection);
         }
-        return true; // Был добавлен новый рецепт!
     }
 
 }

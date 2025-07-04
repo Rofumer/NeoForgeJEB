@@ -69,8 +69,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
         );
 
         if (client.JebClient.recipesLoaded) {
+            long startTime = System.currentTimeMillis();
             RecipeBookCategory category = clientboundrecipebookaddpacket$entry.contents().category();
             RecipeDisplayEntry entry = clientboundrecipebookaddpacket$entry.contents();
+            LOGGER.info("[JEB] checking recipe {} started at {}", entry.display().result().resolveForFirstStack(context).getItem().toString() ,new Date(startTime));
             // Проверяем по id (по новому методу!)
             if (!RecipeIndex.recipeIdExistsInIndex(category, entry)) {
                 // Добавляем (метод сам создаёт коллекцию при необходимости)
@@ -92,6 +94,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
                 RecipeIndex.updateIndexesWithRecipe(category, collection, entry);
                 LOGGER.info("[JEB] The recipe has been added: {}", entry.display().result().resolveForFirstStack(context).toString());
             }
+
+            long endTime = System.currentTimeMillis();
+            long duration = endTime - startTime;
+            LOGGER.info("[JEB] checking recipe done at {} ({} ms)", new Date(endTime), duration);
 
             return;
         }
