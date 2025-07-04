@@ -27,18 +27,17 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.List;
 
+import static client.JebClient.LOGGER;
 import static client.JebClient.nonexistingResultItems;
-//import static com.sun.org.apache.xml.internal.security.utils.I18n.translate;
-//import static net.minecraft.client.resource.language.I18n.translate;
 
 public class RecipeIndex {
     // Индексы по категориям
     public final Map<RecipeBookCategory, Map<String, List<RecipeCollection>>> byResult = new HashMap<>();
     public final Map<RecipeBookCategory, Map<String, List<RecipeCollection>>> byMod = new HashMap<>();
     public final Map<RecipeBookCategory, Map<String, List<RecipeCollection>>> byIngredientWord = new HashMap<>();
+    public final Map<RecipeBookCategory, Map<String, List<RecipeCollection>>> byTooltipWord = new HashMap<>();
     public final Map<RecipeBookCategory, Set<RecipeCollection>> allCollections = new HashMap<>();
     private static final Map<RecipeBookCategory, Map<Item, RecipeCollection>> GLOBAL_COLLECTIONS_BY_RESULT = new HashMap<>();
-
 
     public static final RecipeIndex GLOBAL_RECIPE_INDEX = new RecipeIndex();
     public static boolean jebIndexReady = false;
@@ -58,29 +57,24 @@ public class RecipeIndex {
     public static RecipeCollection findOrCreateCollectionFor(RecipeBookCategory category, RecipeDisplayEntry recipeEntry, ContextMap context) {
         Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
         ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
-        if (result == null || result.isEmpty()) return null; // или кидай ошибку
+        if (result == null || result.isEmpty()) return null;
         Item resultItem = result.getItem();
 
         RecipeCollection collection = byItem.get(resultItem);
         if (collection == null) {
-            // всегда создаём изменяемый список!
             collection = new RecipeCollection(new ArrayList<>());
             byItem.put(resultItem, collection);
             RecipeIndex.GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>()).add(collection);
         }
-        // Защита: если список вдруг immutable — пересоздаём коллекцию
         List<RecipeDisplayEntry> recipes = collection.getRecipes();
         if (!recipes.contains(recipeEntry)) {
             try {
                 recipes.add(recipeEntry);
             } catch (UnsupportedOperationException e) {
-                // если нельзя — пересоздаём
                 List<RecipeDisplayEntry> fixed = new ArrayList<>(recipes);
                 fixed.add(recipeEntry);
                 RecipeCollection newCollection = new RecipeCollection(fixed);
                 byItem.put(resultItem, newCollection);
-
-                // Перезаписываем в allCollections
                 Set<RecipeCollection> set = RecipeIndex.GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>());
                 set.remove(collection);
                 set.add(newCollection);
@@ -90,15 +84,10 @@ public class RecipeIndex {
         return collection;
     }
 
-
-
-    // === Индексация ===
-// ... imports и остальной класс как у тебя выше ...
-
     // === Индексация ===
     public static void buildRecipeIndex() {
         long startTime = System.currentTimeMillis();
-        System.out.println("[JEB] buildRecipeIndex started at " + new java.util.Date(startTime));
+        LOGGER.info("[JEB] buildRecipeIndex started at {}", new Date(startTime));
 
         jebIndexReady = false;
         Minecraft client = Minecraft.getInstance();
@@ -107,8 +96,9 @@ public class RecipeIndex {
         GLOBAL_RECIPE_INDEX.byResult.clear();
         GLOBAL_RECIPE_INDEX.byMod.clear();
         GLOBAL_RECIPE_INDEX.byIngredientWord.clear();
+        GLOBAL_RECIPE_INDEX.byTooltipWord.clear();
         GLOBAL_RECIPE_INDEX.allCollections.clear();
-        GLOBAL_COLLECTIONS_BY_RESULT.clear(); // <= вот тут!
+        GLOBAL_COLLECTIONS_BY_RESULT.clear();
 
         ContextMap context = SlotDisplayContext.fromLevel(
                 Objects.requireNonNull(Minecraft.getInstance().level)
@@ -130,13 +120,13 @@ public class RecipeIndex {
             List<RecipeCollection> collections = book.getCollection(category);
             if (collections.isEmpty()) continue;
 
-            // Индекс коллекций по предмету результата (ГЛАВНОЕ!)
             Map<Item, RecipeCollection> collectionsByResult = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
             Set<RecipeCollection> categoryCollections = new LinkedHashSet<>();
 
             Map<String, List<RecipeCollection>> resultIndex = new HashMap<>();
             Map<String, List<RecipeCollection>> modIndex = new HashMap<>();
             Map<String, List<RecipeCollection>> ingredientIndex = new HashMap<>();
+            Map<String, List<RecipeCollection>> tooltipIndex = new HashMap<>();
 
             for (RecipeCollection collection : collections) {
                 List<RecipeDisplayEntry> entries = collection.getRecipes();
@@ -147,20 +137,18 @@ public class RecipeIndex {
                     if (result == null || result.isEmpty()) continue;
                     Item resultItem = result.getItem();
 
-                    // Ищем коллекцию по результату, если нет — создаём!
+                    // Коллекция по результату
                     RecipeCollection realCollection = collectionsByResult.get(resultItem);
                     if (realCollection == null) {
-                        // Сделать новую коллекцию с этим и только этим рецептом
                         realCollection = new RecipeCollection(new ArrayList<>());
                         collectionsByResult.put(resultItem, realCollection);
                         categoryCollections.add(realCollection);
                     }
-                    // Добавить рецепт, если его там нет
                     if (!realCollection.getRecipes().contains(recipe)) {
                         realCollection.getRecipes().add(recipe);
                     }
 
-                    // --- Индексация (не меняется) ---
+                    // Индексация по ингредиентам
                     Optional<List<Ingredient>> opt = recipe.craftingRequirements();
                     if (opt.isPresent()) {
                         for (Ingredient ingredient : opt.get()) {
@@ -170,6 +158,8 @@ public class RecipeIndex {
                             }
                         }
                     }
+
+                    // Индексация по namespace (моду)
                     String mod = BuiltInRegistries.ITEM.getKey(resultItem).getNamespace().toLowerCase(Locale.ROOT);
                     for (int i = 0; i < mod.length(); i++) {
                         for (int j = i + 1; j <= mod.length(); j++) {
@@ -178,6 +168,8 @@ public class RecipeIndex {
                             modIndex.computeIfAbsent(substr, k -> new ArrayList<>()).add(realCollection);
                         }
                     }
+
+                    // Индекс по подстрокам результата (id и имя)
                     String resultId = BuiltInRegistries.ITEM.getKey(resultItem).toString().toLowerCase(Locale.ROOT);
                     String name = result.getItemName().getString().toLowerCase(Locale.ROOT).replaceAll("[\\[\\]«»\"]", "");
                     for (String source : List.of(resultId, name)) {
@@ -189,6 +181,31 @@ public class RecipeIndex {
                             }
                         }
                     }
+
+                    // --- Индексация по подстрокам тултипов ---
+                    List<String> tooltipLines = new ArrayList<>();
+                    try {
+                        TooltipFlag tooltipFlag = TooltipFlag.Default.NORMAL;
+                        List<Component> tooltip = result.getTooltipLines(Item.TooltipContext.of(Minecraft.getInstance().level), Minecraft.getInstance().player, tooltipFlag);
+                        for (Component line : tooltip) {
+                            String clean = ChatFormatting.stripFormatting(line.getString()).toLowerCase(Locale.ROOT).trim();
+                            tooltipLines.add(clean);
+                        }
+                    } catch (Exception e) {}
+
+                    for (String tooltipLine : tooltipLines) {
+                        String[] words = tooltipLine.split("[\\s,;.:!\\-]+");
+                        for (String word : words) {
+                            if (word.length() < 3) continue;
+                            for (int i = 0; i <= word.length() - 3; i++) {
+                                for (int j = i + 3; j <= word.length(); j++) {
+                                    String substr = word.substring(i, j);
+                                    if (substr.isEmpty()) continue;
+                                    tooltipIndex.computeIfAbsent(substr, k -> new ArrayList<>()).add(realCollection);
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -196,18 +213,17 @@ public class RecipeIndex {
             GLOBAL_RECIPE_INDEX.byResult.put(category, resultIndex);
             GLOBAL_RECIPE_INDEX.byMod.put(category, modIndex);
             GLOBAL_RECIPE_INDEX.byIngredientWord.put(category, ingredientIndex);
+            GLOBAL_RECIPE_INDEX.byTooltipWord.put(category, tooltipIndex);
         }
 
         jebIndexReady = true;
 
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
-        System.out.println("[JEB] buildRecipeIndex done at " + new java.util.Date(endTime)
-                + " (" + duration + " ms), total indexed recipes: " + totalIndexedRecipes);
+        LOGGER.info("[JEB] buildRecipeIndex done at {} ({} ms), total indexed recipes: {}", new Date(endTime), duration, totalIndexedRecipes);
     }
 
-
-    // === Универсальный быстрый поиск по списку категорий ===
+    // Универсальный быстрый поиск по списку категорий
     public static List<RecipeCollection> fastSearch(
             List<RecipeBookCategory> categories,
             String query,
@@ -226,21 +242,19 @@ public class RecipeIndex {
             Map<String, List<RecipeCollection>> ingredientIndex = GLOBAL_RECIPE_INDEX.byIngredientWord.getOrDefault(category, Map.of());
             Set<RecipeCollection> all = GLOBAL_RECIPE_INDEX.allCollections.getOrDefault(category, Set.of());
             Map<String, List<RecipeCollection>> resultIndex = GLOBAL_RECIPE_INDEX.byResult.getOrDefault(category, Map.of());
+            Map<String, List<RecipeCollection>> tooltipIndex = GLOBAL_RECIPE_INDEX.byTooltipWord.getOrDefault(category, Map.of());
 
-            // Если нет фильтра по модулю и пустой запрос — вернуть все коллекции!
             if ((modName.isEmpty()) && query.isEmpty()) {
                 result.addAll(all);
                 continue;
             }
 
-            // Поиск по модулю (namespace)
             if (!modName.isEmpty()) {
                 List<RecipeCollection> modCollections = modIndex.getOrDefault(modName, List.of());
                 if (query.isEmpty()) {
                     result.addAll(modCollections);
                     continue;
                 }
-                // Ищем среди коллекций по моду по словам
                 for (String word : query.split("[\\s:_\\-]+")) {
                     List<RecipeCollection> byWord = resultIndex.getOrDefault(word, List.of());
                     for (RecipeCollection rc : byWord) {
@@ -251,30 +265,30 @@ public class RecipeIndex {
                 continue;
             }
 
-            // Поиск по ингредиенту
             if (searchIngredients && !query.isEmpty()) {
                 List<RecipeCollection> byIng = ingredientIndex.getOrDefault(query, List.of());
                 result.addAll(byIng);
                 continue;
             }
 
-            // Поиск по результату (id или имя)
             if (!query.isEmpty() && !searchIngredients) {
                 List<RecipeCollection> byResult = resultIndex.getOrDefault(query, List.of());
                 result.addAll(byResult);
+
+                // --- Поиск по тултипам ---
+                List<RecipeCollection> byTooltip = tooltipIndex.getOrDefault(query, List.of());
+                result.addAll(byTooltip);
             }
         }
 
         return new ArrayList<>(result);
     }
 
-    // Универсальная обёртка: принимает или одиночную категорию, или Type с его списком категорий
     public static List<RecipeCollection> fastSearch(
             Object categoryOrType, String query, String modName, boolean searchIngredients
     ) {
         List<RecipeBookCategory> categories;
         if (categoryOrType instanceof List) {
-            // Прям список категорий
             categories = (List<RecipeBookCategory>) categoryOrType;
         } else if (categoryOrType instanceof SearchRecipeBookCategory) {
             categories = ((SearchRecipeBookCategory) categoryOrType).includedCategories();
@@ -325,8 +339,6 @@ public class RecipeIndex {
         return list;
     }
 
-
-    // Выносим генерацию фейковой коллекции в отдельный метод для компактности:
     private static RecipeCollection createDummyRecipeCollection(Item item) {
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
         RecipeDisplayId recipeId = new RecipeDisplayId(9999);
@@ -348,7 +360,6 @@ public class RecipeIndex {
         return new RecipeCollection(List.of(entry));
     }
 
-
     public static class IndexedItem {
         public final Item item;
         public final String id;
@@ -367,7 +378,6 @@ public class RecipeIndex {
         }
     }
 
-    // jeb.client.JebClient.java
     public static List<IndexedItem> ITEM_INDEX = new ArrayList<>();
 
     public static void fillItemIndex() {
@@ -383,12 +393,11 @@ public class RecipeIndex {
             if (nameComponent.getContents() instanceof TranslatableContents translatable) {
                 key = translatable.getKey().toLowerCase(Locale.ROOT);
             }
-            List<String> tooltipLines = new ArrayList<>(List.of());
+            List<String> tooltipLines = new ArrayList<>();
 
-            // Можно закэшировать тултипы заранее
             if (client.level != null) {
                 try {
-                    TooltipFlag tooltipFlag = TooltipFlag.Default.NORMAL; // или ADVANCED, если нужен "расширенный" режим
+                    TooltipFlag tooltipFlag = TooltipFlag.Default.NORMAL;
                     List<Component> tooltip = item.getDefaultInstance().getTooltipLines(Item.TooltipContext.of(client.level), client.player, tooltipFlag);
                     for (Component line : tooltip) {
                         String clean = ChatFormatting.stripFormatting(line.getString()).toLowerCase(Locale.ROOT).trim();
@@ -398,7 +407,6 @@ public class RecipeIndex {
                     e.printStackTrace();
                 }
             }
-
             ITEM_INDEX.add(new IndexedItem(item, id, name, mod, key, tooltipLines));
         }
     }
@@ -408,16 +416,14 @@ public class RecipeIndex {
             RecipeCollection collection,
             RecipeDisplayEntry recipeEntry
     ) {
-        // --- Обновление allCollections ---
         GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>()).add(collection);
 
-        // Получаем результат рецепта
         ContextMap context = SlotDisplayContext.fromLevel(Objects.requireNonNull(Minecraft.getInstance().level));
         ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
         if (result == null || result.isEmpty()) return;
         Item resultItem = result.getItem();
 
-        // --- Индексация по модам (namespace) ---
+        // Индексация по модам
         String mod = BuiltInRegistries.ITEM.getKey(resultItem).getNamespace().toLowerCase(Locale.ROOT);
         Map<String, List<RecipeCollection>> modIndex =
                 GLOBAL_RECIPE_INDEX.byMod.computeIfAbsent(category, k -> new HashMap<>());
@@ -432,7 +438,7 @@ public class RecipeIndex {
             }
         }
 
-        // --- Индексация по результату (id и displayName) ---
+        // Индексация по результату
         String resultId = BuiltInRegistries.ITEM.getKey(resultItem).toString().toLowerCase(Locale.ROOT);
         String name = result.getItemName().getString().toLowerCase(Locale.ROOT).replaceAll("[\\[\\]«»\"]", "");
         Map<String, List<RecipeCollection>> resultIndex =
@@ -450,7 +456,7 @@ public class RecipeIndex {
             }
         }
 
-        // --- Индексация по ингредиентам ---
+        // Индексация по ингредиентам
         Map<String, List<RecipeCollection>> ingredientIndex =
                 GLOBAL_RECIPE_INDEX.byIngredientWord.computeIfAbsent(category, k -> new HashMap<>());
         Optional<List<Ingredient>> opt = recipeEntry.craftingRequirements();
@@ -465,7 +471,36 @@ public class RecipeIndex {
                 }
             }
         }
+
+        // Индексация по тултипам (подстроки длиной >=3)
+        Map<String, List<RecipeCollection>> tooltipIndex =
+                GLOBAL_RECIPE_INDEX.byTooltipWord.computeIfAbsent(category, k -> new HashMap<>());
+
+        List<String> tooltipLines = new ArrayList<>();
+        try {
+            TooltipFlag tooltipFlag = TooltipFlag.Default.NORMAL;
+            List<Component> tooltip = result.getTooltipLines(Item.TooltipContext.of(Minecraft.getInstance().level), Minecraft.getInstance().player, tooltipFlag);
+            for (Component line : tooltip) {
+                String clean = ChatFormatting.stripFormatting(line.getString()).toLowerCase(Locale.ROOT).trim();
+                tooltipLines.add(clean);
+            }
+        } catch (Exception e) {}
+
+        for (String tooltipLine : tooltipLines) {
+            String[] words = tooltipLine.split("[\\s,;.:!\\-]+");
+            for (String word : words) {
+                if (word.length() < 3) continue;
+                for (int i = 0; i <= word.length() - 3; i++) {
+                    for (int j = i + 3; j <= word.length(); j++) {
+                        String substr = word.substring(i, j);
+                        if (substr.isEmpty()) continue;
+                        List<RecipeCollection> list = tooltipIndex.computeIfAbsent(substr, k -> new ArrayList<>());
+                        if (!list.contains(collection)) {
+                            list.add(collection);
+                        }
+                    }
+                }
+            }
+        }
     }
-
-
 }
