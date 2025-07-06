@@ -36,8 +36,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
-//@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
+//@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
 public class JebClient {
     public static final Logger LOGGER = LoggerFactory.getLogger("JEB");
     // --- Клиентские переменные и "кэш" ---

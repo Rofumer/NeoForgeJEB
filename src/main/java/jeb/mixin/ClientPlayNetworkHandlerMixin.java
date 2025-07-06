@@ -36,12 +36,6 @@ import static client.RecipeIndex.*;
 public abstract class ClientPlayNetworkHandlerMixin {
 
     @Unique
-    private static int knownRecipeCount = 0;
-
-    @Unique
-    private static int craftingStationId = 0;
-
-    @Unique
     private static final Map<String, Integer> VANILLA_RECIPE_COUNTS = Map.of(
             "1.21.4", 1358,
             "1.21.5", 1361,
@@ -75,25 +69,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
             LOGGER.info("[JEB] checking recipe {} started at {}", entry.display().result().resolveForFirstStack(context).getItem().toString() ,new Date(startTime));
             // Проверяем по id (по новому методу!)
             if (!RecipeIndex.recipeIdExistsInIndex(category, entry)) {
-                // Добавляем (метод сам создаёт коллекцию при необходимости)
-                RecipeIndex.addRecipeToCollectionIfAbsent(category, entry, context);
-
-                // Получаем нужную коллекцию (как показано выше)
-                Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
-                ItemStack result = entry.display().result().resolveForFirstStack(context);
-                if (result == null || result.isEmpty()) return;
-                Item resultItem = result.getItem();
-                RecipeCollection collection = byItem.get(resultItem);
-                if (collection == null) {
-                    collection = new RecipeCollection(new ArrayList<>());
-                    byItem.put(resultItem, collection);
-                    GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>()).add(collection);
-                }
-
-                // Индексируем
-                RecipeIndex.updateIndexesWithRecipe(category, collection, entry);
+                RecipeIndex.addAndIndexRecipeIfAbsent(category, entry, context);
                 LOGGER.info("[JEB] The recipe has been added: {}", entry.display().result().resolveForFirstStack(context).toString());
             }
+
 
             long endTime = System.currentTimeMillis();
             long duration = endTime - startTime;
@@ -137,7 +116,12 @@ public abstract class ClientPlayNetworkHandlerMixin {
 
             Minecraft client = Minecraft.getInstance();
 
-            ClientRecipeBook recipeBook = null;
+            int knownRecipeCount = 0;
+
+            int craftingStationId = 0;
+
+
+            ClientRecipeBook recipeBook;
 
             //if (client.player != null) {
             recipeBook = client.player.getRecipeBook();
@@ -207,7 +191,5 @@ public abstract class ClientPlayNetworkHandlerMixin {
                 fillItemIndex();
             }
         }
-
-
 }
 

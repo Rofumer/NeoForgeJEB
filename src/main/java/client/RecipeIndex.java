@@ -19,7 +19,6 @@ import net.minecraft.world.item.crafting.RecipeBookCategories;
 import net.minecraft.world.item.crafting.RecipeBookCategory;
 import net.minecraft.world.item.crafting.display.*;
 import net.minecraft.ChatFormatting;
-import org.spongepowered.asm.mixin.Unique;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -39,59 +38,6 @@ public class RecipeIndex {
 
     public static final RecipeIndex GLOBAL_RECIPE_INDEX = new RecipeIndex();
     public static boolean jebIndexReady = false;
-
-    public static RecipeCollection getOrCreateCollection(RecipeBookCategory category, Item resultItem) {
-        Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
-        RecipeCollection collection = byItem.get(resultItem);
-        if (collection == null) {
-            collection = new RecipeCollection(new ArrayList<>());
-            byItem.put(resultItem, collection);
-            GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>()).add(collection);
-        }
-        return collection;
-    }
-
-    @Unique
-    public static RecipeCollection findOrCreateCollectionFor(RecipeBookCategory category, RecipeDisplayEntry recipeEntry, ContextMap context) {
-        Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
-        ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
-        if (result == null || result.isEmpty()) return null;
-        Item resultItem = result.getItem();
-
-        RecipeCollection collection = byItem.get(resultItem);
-        if (collection == null) {
-            collection = new RecipeCollection(new ArrayList<>());
-            byItem.put(resultItem, collection);
-            RecipeIndex.GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>()).add(collection);
-        }
-        List<RecipeDisplayEntry> recipes = collection.getRecipes();
-        if (!recipes.contains(recipeEntry)) {
-            try {
-                recipes.add(recipeEntry);
-            } catch (UnsupportedOperationException e) {
-                List<RecipeDisplayEntry> fixed = new ArrayList<>(recipes);
-                fixed.add(recipeEntry);
-                RecipeCollection newCollection = new RecipeCollection(fixed);
-                byItem.put(resultItem, newCollection);
-                Set<RecipeCollection> set = RecipeIndex.GLOBAL_RECIPE_INDEX.allCollections.computeIfAbsent(category, k -> new LinkedHashSet<>());
-                set.remove(collection);
-                set.add(newCollection);
-                collection = newCollection;
-            }
-        }
-        return collection;
-    }
-
-    public static boolean recipeExists(RecipeBookCategory category, RecipeDisplayEntry recipeEntry, ContextMap context) {
-        Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.get(category);
-        if (byItem == null) return false;
-        ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
-        if (result == null || result.isEmpty()) return false;
-        Item resultItem = result.getItem();
-        RecipeCollection collection = byItem.get(resultItem);
-        return collection != null && collection.getRecipes().contains(recipeEntry);
-    }
-
 
     // === Индексация ===
     public static void buildRecipeIndex() {
@@ -311,7 +257,6 @@ public class RecipeIndex {
 
     public static List<RecipeCollection> generateCustomRecipeList(String filter) {
         List<RecipeCollection> list = new ArrayList<>();
-        Minecraft client = Minecraft.getInstance();
 
         filter = filter.trim();
         String _modName = null;
@@ -420,24 +365,6 @@ public class RecipeIndex {
         }
     }
 
-
-    public static boolean containsRecipeInIndex(RecipeBookCategory category, RecipeDisplayEntry recipeEntry) {
-        Map<String, List<RecipeCollection>> resultIndex = GLOBAL_RECIPE_INDEX.byResult.get(category);
-        if (resultIndex == null) return false;
-        ContextMap context = SlotDisplayContext.fromLevel(Objects.requireNonNull(Minecraft.getInstance().level));
-        ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
-        if (result == null || result.isEmpty()) return false;
-        String resultId = BuiltInRegistries.ITEM.getKey(result.getItem()).toString().toLowerCase(Locale.ROOT);
-        List<RecipeCollection> collections = resultIndex.get(resultId);
-        if (collections == null) return false;
-        for (RecipeCollection collection : collections) {
-            if (collection.getRecipes().contains(recipeEntry)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /**
      * Проверяет наличие рецепта с тем же id в индексе для категории.
      * Сравнивает по RecipeDisplayEntry.getId() — не по объекту!
@@ -463,8 +390,6 @@ public class RecipeIndex {
         }
         return false;
     }
-
-
 
     public static void updateIndexesWithRecipe(
             RecipeBookCategory category,
@@ -592,5 +517,26 @@ public class RecipeIndex {
             set.add(newCollection);
         }
     }
+
+    public static void addAndIndexRecipeIfAbsent(
+            RecipeBookCategory category,
+            RecipeDisplayEntry recipeEntry,
+            ContextMap context
+    ) {
+        // Добавляем в коллекцию, если нет
+        addRecipeToCollectionIfAbsent(category, recipeEntry, context);
+
+        // Получаем коллекцию (она гарантированно есть!)
+        Map<Item, RecipeCollection> byItem = GLOBAL_COLLECTIONS_BY_RESULT.computeIfAbsent(category, k -> new HashMap<>());
+        ItemStack result = recipeEntry.display().result().resolveForFirstStack(context);
+        if (result == null || result.isEmpty()) return;
+        Item resultItem = result.getItem();
+        RecipeCollection collection = byItem.get(resultItem);
+        if (collection == null) return; // Уже не может быть, но на всякий случай
+
+        // Индексируем (можно оптимизировать чтобы не индексировать дважды, но это уже детали)
+        updateIndexesWithRecipe(category, collection, recipeEntry);
+    }
+
 
 }
