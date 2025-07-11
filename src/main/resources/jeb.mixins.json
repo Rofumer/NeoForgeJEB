@@ -11,10 +11,12 @@
   ],
   "client": [
     "AbstractCraftingRecipeBookWidgetMixin",
+    "AbstractWidgetAccessor",
     "AnimatedResultButtonMixin",
     "ClientPlayNetworkHandlerMixin",
     "RecipeAlternativesWidgetMixin",
     "RecipeBookResultsAccessor",
+    "RecipeBookTabButtonMixin",
     "RecipeBookWidgetAccessor",
     "RecipeBookWidgetSearchMixin",
     "RecipeResultCollectionMixin"

@@ -112,7 +112,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     );
 
 
-    @Inject(method = "recipesUpdated", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "selectMatchingRecipes()V", at = @At("HEAD"), cancellable = true)
     private void populateAllRecipes(CallbackInfo ci)
     {
         ci.cancel();
@@ -646,9 +646,9 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
             // Проходим по всем коллекциям рецептов из выбранной вкладки
             for (RecipeCollection collection : book.getCollection(selectedTab.getCategory())) {
-                for (RecipeDisplayEntry recipe : collection.getRecipes()) {
+                for (RecipeDisplayEntry recipe1 : collection.getRecipes()) {
                     // Новый способ получения результата рецепта в 1.21.5:
-                    SlotDisplay resultSlot = recipe.display().result();
+                    SlotDisplay resultSlot = recipe1.display().result();
 
 
                     List<ItemStack> stacks = resultSlot.resolveForStacks(context);
@@ -657,7 +657,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                     String resultName = BuiltInRegistries.ITEM.getKey(result.getItem()).getPath().toLowerCase(Locale.ROOT);
 
                     if (resultName.equals(query)) {
-                        for (Ingredient ingredient : recipe.craftingRequirements().get()) {
+                        for (Ingredient ingredient : recipe1.craftingRequirements().get()) {
                             // getItems() — возвращает ItemStack[]
                             for (ItemStack stack : ingredient.display().resolveForStacks(context)) {
                                 if (!stack.isEmpty()) {
@@ -674,6 +674,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
                                             //ItemStack subResult = subRecipe.getResultItem(client.world != null ? client.world.registryAccess() : null);
                                             if (!subResult.isEmpty() && ItemStack.isSameItem(subResult, stack)) {
+                                                subCollection.selectRecipes(stackedContents, recipe -> true);
                                                 ingredientsList.add(subCollection);
                                                 foundReal = true;
                                                 break;
@@ -684,7 +685,9 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                                     // Если не нашли реального рецепта — добавляем фейковую коллекцию
                                     if (!foundReal) {
                                         RecipeDisplayEntry fakeRecipe = createDummySingleItemRecipe(stack);
-                                        ingredientsList.add(new RecipeCollection(List.of(fakeRecipe)));
+                                        RecipeCollection fakeCollection = new RecipeCollection(List.of(fakeRecipe));
+                                        fakeCollection.selectRecipes(stackedContents, recipe -> true);
+                                        ingredientsList.add(fakeCollection);
                                     }
                                     break; // только один stack из одного ingredient
                                 }
@@ -713,6 +716,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                         .anyMatch(favoriteItems::contains);
 
                 if (hasFavorite) {
+                    collection.selectRecipes(stackedContents, recipe -> true);
                     filteredList.add(collection);
                 }
             }
