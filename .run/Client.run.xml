@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Client" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="C:/Program Files/Java/jdk-21" />
+    <option name="MAIN_CLASS_NAME" value="net.neoforged.devlaunch.Main" />
+    <option name="PROGRAM_PARAMETERS" value="@F:\\work\\jeb\\build\\moddev\\clientRunProgramArgs.txt" />
+    <option name="VM_PARAMETERS" value="@F:\\work\\jeb\\build\\moddev\\clientRunVmArgs.txt -Dfml.modFolders=jeb%%F:\\work\\jeb\\build\\classes\\java\\main;jeb%%F:\\work\\jeb\\build\\resources\\main" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/run" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

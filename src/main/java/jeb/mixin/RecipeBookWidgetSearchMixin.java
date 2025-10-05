@@ -7,6 +7,8 @@ import jeb.accessor.ClientRecipeBookAccessor;
 import jeb.accessor.RecipeBookWidgetBridge;
 import client.FavoritesManager;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -155,8 +157,8 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void jeb$clickCustomToggle(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (jeb$customToggleButton != null && jeb$customToggleButton.mouseClicked(mouseX, mouseY, button)) {
+    private void jeb$clickCustomToggle(MouseButtonEvent p_445929_, boolean p_435607_, CallbackInfoReturnable<Boolean> cir) {
+        if (jeb$customToggleButton != null && jeb$customToggleButton.mouseClicked(p_445929_, p_435607_)) {
             jeb$customToggleState = !jeb$customToggleState;
             jeb$customToggleButton.setStateTriggered(jeb$customToggleState);
             customToggleEnabled = !customToggleEnabled;
@@ -268,9 +270,9 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+    private void onKeyPressed(KeyEvent p_446304_, CallbackInfoReturnable<Boolean> cir) {
         // Проверка на нужную клавишу (например, клавиша G, keyCode = 71)
-        if (JebClient.keyBinding2 != null && keyCode == JebClient.keyBinding2.getKey().getValue()){
+        if (JebClient.keyBinding2 != null && p_446304_.key() == JebClient.keyBinding2.getKey().getValue()){
             RecipeButton hovered = ((RecipeBookResultsAccessor) recipeBookPage).getHoveredResultButton();
             if (hovered != null) {
                 //System.out.println("Над кнопкой: " + hovered.getDisplayStack().getItem().toString());
@@ -302,7 +304,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;handlePlaceRecipe(ILnet/minecraft/world/item/crafting/display/RecipeDisplayId;Z)V",
             shift = At.Shift.AFTER
     ))
-    private void onRecipeClicked(RecipeCollection recipeCollection, RecipeDisplayId recipe, CallbackInfoReturnable<Boolean> cir) {
+    private void onRecipeClicked(RecipeCollection recipeCollection, RecipeDisplayId recipe, boolean p_446681_, CallbackInfoReturnable<Boolean> cir) {
         Minecraft client = Minecraft.getInstance();
         ClientRecipeBook recipeBook = client.player.getRecipeBook();
 

@@ -3,6 +3,7 @@ package jeb.mixin;
 import jeb.accessor.ClientRecipeBookAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.*;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.RecipeBookCategory;
@@ -51,14 +52,14 @@ public class RecipeBookResultsMixin {
             method = "mouseClicked",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeButton;mouseClicked(DDI)Z",
+                    target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeButton;mouseClicked(Lnet/minecraft/client/input/MouseButtonEvent;Z)Z",
                     shift = At.Shift.AFTER
             ),
             cancellable = true
 
     )
     private void onRightClickInject(
-            double mouseX, double mouseY, int button, int x, int y, int width, int height, CallbackInfoReturnable<Boolean> cir
+            MouseButtonEvent p_447008_, int p_100412_, int p_100413_, int p_100414_, int p_100415_, boolean p_435386_, CallbackInfoReturnable<Boolean> cir
     ) {
 
         ContextMap context = SlotDisplayContext.fromLevel(Minecraft.getInstance().level);
@@ -67,7 +68,7 @@ public class RecipeBookResultsMixin {
         //if (hovered.mouseClicked(mouseX, mouseY, button)) {
         if (hovered != null) {
 
-            if (button == 2) {
+            if (p_447008_.button() == 2) {
                 ItemStack stack = hovered.getDisplayStack();
                 //String itemName = stack.getItem().getName().getString();
                 String itemName = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().toLowerCase(Locale.ROOT);
@@ -82,7 +83,7 @@ public class RecipeBookResultsMixin {
                 cir.cancel();
             }
 
-            if (button == 1) {
+            if (p_447008_.button() == 1) {
                 ItemStack stack = hovered.getDisplayStack();
                 String itemName = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(); // Локализованное имя (например, "Булыжник")
                 String searchText = "#" + itemName.toLowerCase(Locale.ROOT);
@@ -97,7 +98,7 @@ public class RecipeBookResultsMixin {
             }
 
 
-            if (button == 0) {
+            if (p_447008_.button() == 0) {
 
                 if (!(Minecraft.getInstance().player.containerMenu instanceof AbstractCraftingMenu)) {
                     // Не наш контейнер — не трогаем, пусть работает обычный код!
@@ -118,7 +119,7 @@ public class RecipeBookResultsMixin {
                     RecipeCollection myCustomRecipeResultCollection = new RecipeCollection(List.of(entry));
 
                     if(!canDisplay(entry.display())) {
-                        overlay.init(myCustomRecipeResultCollection, context, false, hovered.getX(), hovered.getY(), x + width / 2, y   + 13 + height / 2, hovered.getWidth());
+                        overlay.init(myCustomRecipeResultCollection, context, false, hovered.getX(), hovered.getY(), p_100412_ + p_100414_ / 2, p_100413_   + 13 + p_100415_ / 2, hovered.getWidth());
                     }
                     else
                     {

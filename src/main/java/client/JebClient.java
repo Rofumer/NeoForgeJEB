@@ -3,6 +3,7 @@ package client;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import jeb.Jeb;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -36,6 +37,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
+import static net.neoforged.neoforge.internal.versions.neoforge.NeoForgeVersion.MOD_ID;
+
 //@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 @EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
 public class JebClient {
@@ -56,20 +59,24 @@ public class JebClient {
     static KeyMapping keyBinding;
     public static KeyMapping keyBinding2;
 
+    // Новая типизированная категория
+    private static final KeyMapping.Category JEB_CATEGORY =
+            new KeyMapping.Category(ResourceLocation.fromNamespaceAndPath(Jeb.MODID, "main"));
+
     // --- Keybindings ---
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         keyBinding = new KeyMapping(
                 "key.jeb.optional_recipes_loading_screen",
                 GLFW.GLFW_KEY_APOSTROPHE,
-                "JEB (Just Enough Book)"
+                JEB_CATEGORY
         );
         event.register(keyBinding);
 
         keyBinding2 = new KeyMapping(
                 "key.jeb.add_remove_favorite_recipes",
                 GLFW.GLFW_KEY_A,
-                "JEB (Just Enough Book)"
+                JEB_CATEGORY
         );
         event.register(keyBinding2);
     }

@@ -43,7 +43,7 @@ public abstract class ServerRecipeBookMixin {
         List<ClientboundRecipeBookAddPacket.Entry> allEntries = new ArrayList<>();
 
         // Получаем все рецепты через RecipeManager
-        Collection<RecipeHolder<?>> allRecipes = player.getServer().getRecipeManager().getRecipes();
+        Collection<RecipeHolder<?>> allRecipes = player.level().getServer().getRecipeManager().getRecipes();
 
         for (RecipeHolder<?> recipeEntry : allRecipes) {
             ResourceKey<Recipe<?>> recipeKey = recipeEntry.id(); // ключ рецепта
