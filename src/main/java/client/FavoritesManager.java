@@ -4,7 +4,7 @@ import com.google.gson.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
 import java.io.FileWriter;
@@ -17,8 +17,8 @@ public class FavoritesManager {
     private static final Path FAVORITES_PATH = Paths.get(Minecraft.getInstance().gameDirectory.getAbsolutePath(), "config", "JEBfavorites.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    public static Set<ResourceLocation> loadFavoriteItemIds() {
-        Set<ResourceLocation> result = new HashSet<>();
+    public static Set<Identifier> loadFavoriteItemIds() {
+        Set<Identifier> result = new HashSet<>();
         try {
             if (!Files.exists(FAVORITES_PATH)) return result;
 
@@ -28,7 +28,7 @@ public class FavoritesManager {
             for (JsonElement el : array) {
                 JsonObject obj = el.getAsJsonObject();
                 if (server.equals(obj.get("server").getAsString())) {
-                    result.add(ResourceLocation.bySeparator(obj.get("item").getAsString(), ':'));
+                    result.add(Identifier.bySeparator(obj.get("item").getAsString(), ':'));
                 }
             }
 
@@ -42,7 +42,7 @@ public class FavoritesManager {
     public static void removeFavorite(ItemStack stack) {
         try {
             String server = getServerName();
-            ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
             String nbtString = getSerializedNbt(stack);
 
             if (!Files.exists(FAVORITES_PATH)) return;
@@ -78,7 +78,7 @@ public class FavoritesManager {
     public static void saveFavorite(ItemStack stack) {
         try {
             String server = getServerName();
-            ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
             String nbtString = getSerializedNbt(stack);
 
             JsonArray favorites = Files.exists(FAVORITES_PATH)

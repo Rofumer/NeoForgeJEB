@@ -6,16 +6,28 @@ import jeb.accessor.AnimatedResultButtonExtension;
 import jeb.accessor.ClientRecipeBookAccessor;
 import jeb.accessor.RecipeBookWidgetBridge;
 import client.FavoritesManager;
+import net.minecraft.client.ClientRecipeBook;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.recipebook.*;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.inventory.AbstractCraftingMenu;
+import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -23,18 +35,6 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeBookCategories;
 import net.minecraft.world.item.crafting.RecipeBookCategory;
 import net.minecraft.world.item.crafting.display.*;
-import net.minecraft.client.gui.screens.recipebook.*;
-import net.minecraft.client.ClientRecipeBook;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StateSwitchingButton;
-import net.minecraft.client.gui.components.WidgetSprites;
-import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.RecipeBookMenu;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -44,10 +44,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-
 import java.util.*;
 
-import static client.JebClient.*;
+import static client.JebClient.customToggleEnabled;
+import static client.JebClient.string;
+import static client.JebClient.filtered;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> implements RecipeBookWidgetBridge {
@@ -58,7 +59,6 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     @Shadow @Final
     private StackedItemContents stackedContents;
 
-    // Это будет вызов приватного метода
     @Shadow
     private void initVisuals() {}
 
@@ -83,7 +83,6 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     @Shadow
     private EditBox searchBox;
 
-
     @Shadow
     @Final
     private List<RecipeBookComponent.TabInfo> tabInfos;
@@ -93,267 +92,138 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
     private List<RecipeBookTabButton> tabButtons;
 
     @Shadow
-    protected StateSwitchingButton filterButton;
+    protected CycleButton<Boolean> filterButton;
 
     @Unique
-    private StateSwitchingButton jeb$customToggleButton;
+    private CycleButton<Boolean> jeb$customToggleButton;
 
     @Unique
     private boolean jeb$customToggleState = false;
 
     @Unique
     private static final WidgetSprites TEXTURES_ALT = new WidgetSprites(
-            ResourceLocation.withDefaultNamespace("recipe_book/crafting_overlay"),
-            ResourceLocation.withDefaultNamespace("recipe_book/crafting_overlay_highlighted")
+            Identifier.withDefaultNamespace("recipe_book/crafting_overlay"),
+            Identifier.withDefaultNamespace("recipe_book/crafting_overlay_highlighted")
     );
 
     @Unique
     private static final WidgetSprites TEXTURES_DEFAULT = new WidgetSprites(
-            ResourceLocation.withDefaultNamespace("recipe_book/crafting_overlay_disabled"),
-            ResourceLocation.withDefaultNamespace("recipe_book/crafting_overlay_disabled_highlighted")
+            Identifier.withDefaultNamespace("recipe_book/crafting_overlay_disabled"),
+            Identifier.withDefaultNamespace("recipe_book/crafting_overlay_disabled_highlighted")
     );
 
-
+    // --- глушим стандартный selectMatchingRecipes ---
     @Inject(method = "selectMatchingRecipes()V", at = @At("HEAD"), cancellable = true)
-    private void populateAllRecipes(CallbackInfo ci)
-    {
+    private void populateAllRecipes(CallbackInfo ci) {
         ci.cancel();
     }
 
+    // --- создаём нашу кастомную кнопку на основе CycleButton<Boolean> ---
     @Inject(method = "initVisuals", at = @At("TAIL"))
     private void jeb$addCustomToggleButton(CallbackInfo ci) {
         int x = this.filterButton.getX();
-        int y = this.filterButton.getY()+125;
+        int y = this.filterButton.getY() + 125;
 
-        jeb$customToggleButton = new StateSwitchingButton(x, y, 20, 16, false);
-        if(customToggleEnabled){
-            jeb$customToggleButton.setTooltip(Tooltip.create(Component.literal("Show 3x3")));
-            jeb$customToggleButton.initTextureValues(TEXTURES_ALT);
-        }
-        else
-        {
-            jeb$customToggleButton.setTooltip(Tooltip.create(Component.literal("Show 2x2")));
-            jeb$customToggleButton.initTextureValues(TEXTURES_DEFAULT);
-        }
-        jeb$customToggleButton.setMessage(Component.literal("!"));
+        jeb$customToggleState = customToggleEnabled;
+
+        jeb$customToggleButton = CycleButton.onOffBuilder(customToggleEnabled)
+                .withTooltip(value ->
+                        Tooltip.create(Component.literal(value ? "Show 3x3" : "Show 2x2")))
+                .withSprite((button, value) -> {
+                    WidgetSprites sprites = value ? TEXTURES_ALT : TEXTURES_DEFAULT;
+                    return sprites.get(true, button.isHoveredOrFocused());
+                })
+                .displayState(CycleButton.DisplayState.HIDE)
+                .create(x, y, 20, 16, Component.literal("!"),
+                        (cycle, value) -> {
+                            // коллбэк при смене состояния
+                            jeb$customToggleState = value;
+                            customToggleEnabled = value;
+                            JebClient.saveConfig();
+                            ((RecipeBookWidgetBridge) this).jeb$refresh();
+                        });
+
         jeb$customToggleButton.visible = true;
-
     }
 
+    // рисуем кнопку сразу после ванильной filterButton
     @Inject(
             method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/components/StateSwitchingButton;render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V",
-                    ordinal = 0, // если их несколько, выбирай нужный
+                    target = "Lnet/minecraft/client/gui/components/CycleButton;render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V",
+                    ordinal = 0,
                     shift = At.Shift.AFTER
             )
     )
-    private void jeb$renderCustomToggle(GuiGraphics p_283597_, int p_282668_, int p_283506_, float p_282813_, CallbackInfo ci) {
+    private void jeb$renderCustomToggle(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         if (jeb$customToggleButton != null && jeb$customToggleButton.visible) {
-            jeb$customToggleButton.render(p_283597_, p_282668_, p_283506_, p_282813_);
+            jeb$customToggleButton.render(graphics, mouseX, mouseY, partialTick);
         }
     }
 
-
+    // клики по нашей кнопке
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void jeb$clickCustomToggle(MouseButtonEvent p_445929_, boolean p_435607_, CallbackInfoReturnable<Boolean> cir) {
-        if (jeb$customToggleButton != null && jeb$customToggleButton.mouseClicked(p_445929_, p_435607_)) {
-            jeb$customToggleState = !jeb$customToggleState;
-            jeb$customToggleButton.setStateTriggered(jeb$customToggleState);
-            customToggleEnabled = !customToggleEnabled;
-
-            JebClient.saveConfig();
-            // Меняем текстуру в зависимости от состояния
-            jeb$customToggleButton.initTextureValues(customToggleEnabled ? TEXTURES_ALT : TEXTURES_DEFAULT);
-
-            jeb$customToggleButton.setTooltip(customToggleEnabled ? Tooltip.create(Component.literal("Show 3x3")):Tooltip.create(Component.literal("Show 2x2")));
-
-            //System.out.println("Кастомная кнопка: " + (jeb$customToggleState ? "включена" : "выключена"));
-
-            // Рефреш через reflection
-            /*try {
-                Method method = RecipeBookWidget.class.getDeclaredMethod("refresh");
-                method.setAccessible(true);
-                method.invoke(this);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }*/
-
-            ((RecipeBookWidgetBridge) this).jeb$refresh();
-
+    private void jeb$clickCustomToggle(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        if (jeb$customToggleButton != null && jeb$customToggleButton.mouseClicked(event, doubleClick)) {
+            // состояние уже обработано в onValueChange колбэке
             cir.setReturnValue(true);
         }
     }
 
-
-    /*@Inject(
-            method = "reset",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Ljava/util/List;clear()V",
-                    shift = At.Shift.AFTER
-            )
-    )
-    private void injectCustomTab(CallbackInfo ci) {
-
-
-        // Создаём кнопку вкладки
-        RecipeBookWidget.Tab newTab = new RecipeBookWidget.Tab(Items.WRITABLE_BOOK, RecipeBookCategories.CAMPFIRE);
-        RecipeGroupButtonWidget tabButton = new RecipeGroupButtonWidget(newTab);
-        tabButton.setMessage(Text.of("Favorites"));
-
-
-        this.tabButtons.add(tabButton);
-
-    }*/
-
-    /*@Inject(method = "<init>", at = @At("RETURN"))
-    private void injectAfterConstructor(T craftingScreenHandler, List<RecipeBookWidget.Tab> tabs, CallbackInfo ci) {
-
-        RecipeBookWidget.Tab newTab = new RecipeBookWidget.Tab(Items.WRITABLE_BOOK, RecipeBookCategories.CAMPFIRE);
-        //RecipeGroupButtonWidget tabButton = new RecipeGroupButtonWidget(newTab);
-        //tabButton.setMessage(Text.of("Favorites"));
-        this.tabs.add(newTab);
-
-    }*/
-
-    /*@Inject(
-            method = "reset",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screen/recipebook/RecipeGroupButtonWidget;setToggled(Z)V",
-                    ordinal = 0,
-                    shift = At.Shift.BEFORE
-            )
-    )
-    private void jeb$replaceFavoritesAsDefaultTab(CallbackInfo ci) {
-        if (this.currentTab == tabButtons.get(0) && tabButtons.size() > 1) {
-            RecipeGroupButtonWidget maybeFavorites = tabButtons.get(0);
-            //if ("Favorites".equals(maybeFavorites.getMessage().getString())) {
-                // Сбросить подсветку со старой
-                //maybeFavorites.setToggled(true);
-                maybeFavorites.setToggled(true);
-
-            //this.refreshTabButtons(bl);
-
-            ((RecipeBookWidgetAccessor) this).jeb$populateAllRecipes();
-
-            ((RecipeBookWidgetAccessor) this).jeb$refreshTabButtons(true);
-
-                // Назначить новую
-                this.currentTab = tabButtons.get(1);
-
-            ((RecipeBookWidgetAccessor) this).jeb$populateAllRecipes();
-
-            ((RecipeBookWidgetAccessor) this).jeb$refreshTabButtons(true);
-            //}
-        }
-    }*/
-
-    /*@Unique
-    private boolean isFavoritesTabActive() {
-        if (currentTab == null) return false;
-
-        return tabButtons.stream()
-                .filter(button -> button.isSelected())
-                .anyMatch(button -> "Favorites".equals(button.getMessage().getString()));
-    }*/
+    // === Favourites tab ===
 
     @Unique
     private boolean isFavoritesTabActive() {
-        //return currentTab != null
-        //        && currentTab.getMessage() != null
-        //        && "Favorites".equals(currentTab.getMessage().getString());
         return selectedTab.getCategory() == net.minecraft.world.item.crafting.RecipeBookCategories.CAMPFIRE;
     }
 
-
+    // хоткей на наведённый рецепт (избранное / удалить из избранного)
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(KeyEvent p_446304_, CallbackInfoReturnable<Boolean> cir) {
-        // Проверка на нужную клавишу (например, клавиша G, keyCode = 71)
-        if (JebClient.keyBinding2 != null && p_446304_.key() == JebClient.keyBinding2.getKey().getValue()){
+    private void onKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        if (JebClient.keyBinding2 != null && event.key() == JebClient.keyBinding2.getKey().getValue()) {
             RecipeButton hovered = ((RecipeBookResultsAccessor) recipeBookPage).getHoveredResultButton();
             if (hovered != null) {
-                //System.out.println("Над кнопкой: " + hovered.getDisplayStack().getItem().toString());
-                //ItemStack stack = hovered.getDisplayStack();
                 if (isFavoritesTabActive()) {
                     FavoritesManager.removeFavorite(hovered.getDisplayStack());
-                    // Рефреш через reflection
-                    /*try {
-                        Method method = RecipeBookWidget.class.getDeclaredMethod("refresh");
-                        method.setAccessible(true);
-                        method.invoke(this);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }*/
                     ((RecipeBookWidgetBridge) this).jeb$refresh();
                 } else {
                     FavoritesManager.saveFavorite(hovered.getDisplayStack());
                 }
-                //FavoritesManager.saveFavorite(stack);
                 ((AnimatedResultButtonExtension) hovered).jeb$flash();
-                // Здесь можно выполнить любое действие, например, выбрать рецепт, показать информацию и т.д.
                 cir.setReturnValue(true);
             }
         }
     }
 
-    @Inject(method = "tryPlaceRecipe", at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;handlePlaceRecipe(ILnet/minecraft/world/item/crafting/display/RecipeDisplayId;Z)V",
-            shift = At.Shift.AFTER
-    ))
-    private void onRecipeClicked(RecipeCollection recipeCollection, RecipeDisplayId recipe, boolean p_446681_, CallbackInfoReturnable<Boolean> cir) {
+    // после tryPlaceRecipe – показываем ghost, если крафт невозможен
+    @Inject(
+            method = "tryPlaceRecipe",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;handlePlaceRecipe(ILnet/minecraft/world/item/crafting/display/RecipeDisplayId;Z)V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void onRecipeClicked(RecipeCollection recipeCollection, RecipeDisplayId recipe, boolean useMaxItems, CallbackInfoReturnable<Boolean> cir) {
         Minecraft client = Minecraft.getInstance();
-        ClientRecipeBook recipeBook = client.player.getRecipeBook();
+        if (client.player == null) return;
 
-        Map<RecipeDisplayId, RecipeDisplayEntry> recipes = ((ClientRecipeBookAccessor) recipeBook).getRecipes();
+        ClientRecipeBook recipeBook = client.player.getRecipeBook();
+        Map<RecipeDisplayId, RecipeDisplayEntry> recipes =
+                ((ClientRecipeBookAccessor) recipeBook).getRecipes();
 
         RecipeDisplayEntry entry = recipes.get(recipe);
-
         Screen screen = client.screen;
 
         if (screen instanceof RecipeUpdateListener provider && entry != null) {
-            //System.out.println("РецептL " + entry.display().toString());
-            if(!recipeCollection.isCraftable(recipe) && recipe.index()!=9999) {
+            if (!recipeCollection.isCraftable(recipe) && recipe.index() != 9999) {
                 provider.fillGhostRecipe(entry.display());
             }
         }
     }
 
-
-    /*@Inject(method = "refreshResults", at = @At("HEAD"), cancellable = true)
-    private void onCustomIngredientSearch(boolean resetCurrentPage, boolean filteringCraftable, CallbackInfo ci) {
-        String string = searchField.getText();
-        if (!string.startsWith("#")) return;
-
-        String query = string.substring(1).toLowerCase(Locale.ROOT);
-        ClientPlayNetworkHandler handler = client.getNetworkHandler();
-        if (handler == null) return;
-
-        List<RecipeResultCollection> originalList = recipeBook.getResultsForCategory(currentTab.getCategory());
-        List<RecipeResultCollection> filteredList = Lists.newArrayList();
-
-        for (RecipeResultCollection collection : originalList) {
-            if (!collection.hasDisplayableRecipes()) continue;
-
-            for (RecipeDisplayEntry entry : collection.getAllRecipes()) {
-                if (recipeDisplayMatchesIngredientQuery(entry, query)) {
-                    filteredList.add(collection);
-                    break;
-                }
-            }
-        }
-
-        if (filteringCraftable) {
-            filteredList.removeIf(rc -> !rc.hasCraftableRecipes());
-        }
-
-        recipesArea.setResults(filteredList, resetCurrentPage, filteringCraftable);
-        ci.cancel();
-    }*/
-
+    // === поиск по ингредиентам ===
     @Unique
     private boolean recipeDisplayMatchesIngredientQuery(RecipeDisplayEntry entry, String query) {
         if (entry.craftingRequirements().isEmpty()) return false;
@@ -367,178 +237,9 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         );
     }
 
-    /****@Unique
-    private boolean recipeResultMatchesQuery(RecipeDisplayEntry entry, String query) {
-        if (entry.display() == null || entry.display().result() == null) return false;
-
-        SlotDisplay resultSlot = entry.display().result();
-
-        ContextParameterMap context = SlotDisplayContexts.createParameters(
-                Objects.requireNonNull(this.client.world)
-        );
-
-        List<ItemStack> stacks = resultSlot.getStacks(context);
-        if (stacks.isEmpty()) return false;
-
-        ItemStack stack = stacks.get(0);
-        if (stack == null || stack.isEmpty()) return false;
-
-        String name = stack.getName().getString().toLowerCase(Locale.ROOT);
-        String id = stack.getItem().toString().toLowerCase(Locale.ROOT);
-        String key = stack.getItem().getTranslationKey().toLowerCase(Locale.ROOT);
-
-        if (name.contains(query) || id.contains(query) || key.contains(query)) {
-            return true;
-        }
-
-        // Поиск по тултипам
-        RegistryWrapper.WrapperLookup lookup = client.world.getRegistryManager();
-        Item.TooltipContext tooltipContext = Item.TooltipContext.create(lookup);
-        TooltipType tooltipType = TooltipType.Default.BASIC;
-
-        List<Text> tooltip = stack.getTooltip(tooltipContext, client.player, tooltipType);
-        for (Text line : tooltip) {
-            String clean = Formatting.strip(line.getString()).toLowerCase(Locale.ROOT).trim();
-            if (clean.contains(query)) return true;
-        }
-
-        return false;
-    }
-
-
-
-    @Inject(method = "refreshResults", at = @At("HEAD"), cancellable = true)
-    private void onCustomSearch(boolean resetCurrentPage, boolean filteringCraftable, CallbackInfo ci) {
-        String string = searchField.getText();
-        //if (string.isEmpty()) return;
-
-        boolean searchIngredients = string.startsWith("#");
-        String query = (searchIngredients ? string.substring(1) : string).toLowerCase();
-
-        ClientPlayNetworkHandler handler = client.getNetworkHandler();
-        if (handler == null) return;
-
-        List<RecipeResultCollection> originalList = recipeBook.getResultsForCategory(currentTab.getCategory());
-        List<RecipeResultCollection> filteredList = Lists.newArrayList();
-
-        for (RecipeResultCollection collection : originalList) {
-            if (!collection.hasDisplayableRecipes()) continue;
-
-            for (RecipeDisplayEntry entry : collection.getAllRecipes()) {
-                boolean match =
-                        recipeResultMatchesQuery(entry, query) ||
-                                (searchIngredients && recipeDisplayMatchesIngredientQuery(entry, query));
-
-                if (match) {
-                    filteredList.add(collection);
-                    break;
-                }
-            }
-        }
-
-        if (filteringCraftable) {
-            filteredList.removeIf(rc -> !rc.hasCraftableRecipes());
-        }****/
-
-        //System.out.println("filteredList содержит " + filteredList.size() + " рецептов");
-
-        // Получаем доступ к searchField через наш accessor
-
-        // Получаем текст из поля поиска
-
-        // 🔹 Собираем все предметы, уже встречающиеся в filteredList как результат
-        /*Set<Item> existingResultItems = new HashSet<>();
-        for (RecipeResultCollection collection : filteredList) {
-            for (RecipeDisplayEntry entry : collection.getAllRecipes()) {
-                getItemFromSlotDisplay(entry.display().result()).ifPresent(existingResultItems::add);
-            }
-        }*/
-
-
-        /// ////////
-        /*for (Item item : Registries.ITEM) {
-            if (item == Items.AIR) continue;
-            //if (existingResultItems.contains(item)) continue;
-
-            if (!translate(item.getTranslationKey()).toLowerCase().contains(string.toLowerCase())) continue;
-
-            Identifier id = Registries.ITEM.getId(item);
-            System.out.println("Item: " + id);
-
-            NetworkRecipeId recipeId = new NetworkRecipeId(9999);
-
-            List<SlotDisplay> slots = new ArrayList<>();
-            slots.add(new SlotDisplay.TagSlotDisplay(TagKey.of(RegistryKeys.ITEM, Identifier.of("minecraft", id.getPath()))));
-
-            SlotDisplay.StackSlotDisplay resultSlot = new SlotDisplay.StackSlotDisplay(new ItemStack(item, 1));
-
-            SlotDisplay.ItemSlotDisplay stationSlot = new SlotDisplay.ItemSlotDisplay(
-                    Registries.ITEM.get(Identifier.of("minecraft", "crafting_table"))
-            );
-
-            OptionalInt group = OptionalInt.empty();
-            RecipeBookCategory category = RecipeBookCategories.CRAFTING_MISC;
-
-            List<Ingredient> ingredients = List.of(Ingredient.ofItems(item));
-
-            ShapelessCraftingRecipeDisplay display = new ShapelessCraftingRecipeDisplay(slots, resultSlot, stationSlot);
-            RecipeDisplayEntry recipeDisplayEntry = new RecipeDisplayEntry(recipeId, display, group, category, Optional.of(ingredients));
-            RecipeResultCollection myCustomRecipeResultCollection = new RecipeResultCollection(List.of(recipeDisplayEntry));
-
-            filteredList.add(myCustomRecipeResultCollection);
-        }*/
-
-        /****filteredList.addAll(JEBClient.generateCustomRecipeList(string));****/
-
-        //if (!string.isEmpty()) {
-            /*for (Item item : Registries.ITEM) {
-                if (item == Items.AIR) continue;
-                if (existingResultItems.contains(item)) continue;
-
-                Identifier id = Registries.ITEM.getId(item);
-                String idString = id.toString().toLowerCase(); // без Locale
-                String name = item.getName().getString().toLowerCase(); // без Locale
-                String searchLower = string.toLowerCase(); // без Locale
-
-                // Если id или имя содержит текст поиска
-                if (!idString.contains(searchLower) && !name.contains(searchLower)) continue;
-
-                NetworkRecipeId recipeId = new NetworkRecipeId(9999);
-
-                List<SlotDisplay> slots = List.of(
-                        new SlotDisplay.TagSlotDisplay(TagKey.of(RegistryKeys.ITEM, id))
-                );
-
-                SlotDisplay.StackSlotDisplay resultSlot = new SlotDisplay.StackSlotDisplay(new ItemStack(item));
-                SlotDisplay.ItemSlotDisplay stationSlot = new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE);
-
-                ShapelessCraftingRecipeDisplay display = new ShapelessCraftingRecipeDisplay(slots, resultSlot, stationSlot);
-
-                OptionalInt group = OptionalInt.empty();
-                RecipeBookCategory category = RecipeBookCategories.CRAFTING_MISC;
-                List<Ingredient> ingredients = List.of(Ingredient.ofItems(item));
-
-                RecipeDisplayEntry entry = new RecipeDisplayEntry(recipeId, display, group, category, Optional.of(ingredients));
-                RecipeResultCollection resultCollection = new RecipeResultCollection(List.of(entry));
-
-                filteredList.add(resultCollection);
-            }*/
-        //}
-
-
-
-        //System.out.println("2: filteredList содержит " + filteredList.size() + " рецептов");
-        //System.out.println("Текст в поисковом поле: " + string);
-        
-    /****    recipesArea.setResults(filteredList, resetCurrentPage, filteringCraftable);
-        ci.cancel();
-    }****/
-
-
-
+    // === поиск по результату + мод + тултипы ===
     @Unique
     private boolean recipeResultMatchesQuery(RecipeDisplayEntry entry, String query, String modName) {
-
         SlotDisplay resultSlot = entry.display().result();
 
         ContextMap context = SlotDisplayContext.fromLevel(
@@ -554,44 +255,46 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         String name = stack.getDisplayName().getString().toLowerCase(Locale.ROOT);
         String id = stack.getItem().toString().toLowerCase(Locale.ROOT);
         String key = "";
-        Component nameComponent = stack.getHoverName(); // или getDisplayName()
+        Component nameComponent = stack.getHoverName();
         if (nameComponent.getContents() instanceof TranslatableContents translatable) {
             key = translatable.getKey().toLowerCase(Locale.ROOT);
         }
 
-        // Проверка на имя мода
-        if (modName != null && !modName.isEmpty() && !BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace().contains(modName)) {
-            return false;  // Не принадлежит указанному моду
+        if (modName != null && !modName.isEmpty()
+                && !BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace().contains(modName)) {
+            return false;
         }
 
-        // Обычный поиск по строкам
         if (name.contains(query) || id.contains(query) || key.contains(query)) {
             return true;
         }
 
-        // Поиск по тултипам
-        TooltipFlag tooltipFlag = minecraft.options.advancedItemTooltips ? TooltipFlag.Default.ADVANCED : TooltipFlag.Default.NORMAL;
-
-
+        TooltipFlag tooltipFlag = minecraft.options.advancedItemTooltips
+                ? TooltipFlag.Default.ADVANCED
+                : TooltipFlag.Default.NORMAL;
 
         try {
-            List<Component> tooltip = stack.getTooltipLines(Item.TooltipContext.of(this.minecraft.level),minecraft.player, tooltipFlag);
+            List<Component> tooltip = stack.getTooltipLines(
+                    Item.TooltipContext.of(this.minecraft.level),
+                    minecraft.player,
+                    tooltipFlag
+            );
 
             for (Component line : tooltip) {
-                String clean = net.minecraft.ChatFormatting.stripFormatting(line.getString()).toLowerCase(Locale.ROOT).trim();
+                String clean = net.minecraft.ChatFormatting.stripFormatting(line.getString())
+                        .toLowerCase(Locale.ROOT)
+                        .trim();
                 if (clean.contains(query)) return true;
             }
         } catch (Exception e) {
             e.printStackTrace();
-            // Можно также записать лог или безопасно проигнорировать ошибку
         }
 
         return false;
     }
 
-
     private static RecipeDisplayEntry createDummySingleItemRecipe(ItemStack stack) {
-        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         RecipeDisplayId recipeId = new RecipeDisplayId(9999);
 
         List<SlotDisplay> slots = List.of(
@@ -599,7 +302,8 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         );
         SlotDisplay.ItemStackSlotDisplay resultSlot = new SlotDisplay.ItemStackSlotDisplay(stack.copy());
         SlotDisplay.ItemSlotDisplay stationSlot =
-                new SlotDisplay.ItemSlotDisplay(BuiltInRegistries.ITEM.getValue(ResourceLocation.fromNamespaceAndPath("minecraft", "crafting_table")));
+                new SlotDisplay.ItemSlotDisplay(BuiltInRegistries.ITEM.getValue(
+                        Identifier.fromNamespaceAndPath("minecraft", "crafting_table")));
 
         RecipeDisplay display = new ShapelessCraftingRecipeDisplay(slots, resultSlot, stationSlot);
         OptionalInt group = OptionalInt.empty();
@@ -609,19 +313,16 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         return new RecipeDisplayEntry(recipeId, display, group, category, Optional.of(ingredients));
     }
 
+    // === основной кастомный поиск ===
     @Inject(method = "updateCollections", at = @At("HEAD"), cancellable = true)
     private void onCustomSearch(boolean resetCurrentPage, boolean filteringCraftable, CallbackInfo ci) {
         String rawInput = searchBox.getValue();
-        ///if (rawInput != null && rawInput.trim().isEmpty() && emptysearch != null && !emptysearch.isEmpty())
-        ///{
-        ///    recipeBookPage.updateCollections(emptysearch, resetCurrentPage, filteringCraftable);
-        ///    ci.cancel();
-        ///}
-
         if (rawInput == null) rawInput = "";
+
         boolean searchIngredients = rawInput.startsWith("#");
         boolean searchByResult = rawInput.startsWith("~");
-        String query = (searchIngredients || searchByResult ? rawInput.substring(1) : rawInput).toLowerCase(Locale.ROOT);
+        String query = (searchIngredients || searchByResult ? rawInput.substring(1) : rawInput)
+                .toLowerCase(Locale.ROOT);
 
         String modName = null;
         if (rawInput.startsWith("@")) {
@@ -638,45 +339,39 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         List<RecipeCollection> collections = book.getCollection(selectedTab.getCategory());
         List<RecipeCollection> filteredList = new ArrayList<>();
 
+        // === режим ~item_id → показывать ингредиенты результата ===
         if (rawInput.startsWith("~") && !isFavoritesTabActive()) {
             ContextMap context = SlotDisplayContext.fromLevel(
                     Objects.requireNonNull(minecraft.level)
             );
 
             List<RecipeCollection> ingredientsList = new ArrayList<>();
-            // query уже без ~, приведён к lowerCase
 
-            // Проходим по всем коллекциям рецептов из выбранной вкладки
             for (RecipeCollection collection : book.getCollection(selectedTab.getCategory())) {
                 for (RecipeDisplayEntry recipe1 : collection.getRecipes()) {
-                    // Новый способ получения результата рецепта в 1.21.5:
                     SlotDisplay resultSlot = recipe1.display().result();
-
-
                     List<ItemStack> stacks = resultSlot.resolveForStacks(context);
+                    if (stacks.isEmpty()) continue;
+
                     ItemStack result = stacks.get(0);
-                    //String resultName = result.getItem().toString().toLowerCase(Locale.ROOT);
-                    String resultName = BuiltInRegistries.ITEM.getKey(result.getItem()).getPath().toLowerCase(Locale.ROOT);
+                    String resultName = BuiltInRegistries.ITEM.getKey(result.getItem())
+                            .getPath()
+                            .toLowerCase(Locale.ROOT);
 
                     if (resultName.equals(query)) {
                         for (Ingredient ingredient : recipe1.craftingRequirements().get()) {
-                            // getItems() — возвращает ItemStack[]
                             for (ItemStack stack : ingredient.display().resolveForStacks(context)) {
                                 if (!stack.isEmpty()) {
-                                    // Проверяем: есть ли коллекция рецептов, где результат — этот ингредиент?
                                     boolean foundReal = false;
                                     for (RecipeCollection subCollection : book.getCollection(SearchRecipeBookCategory.CRAFTING)) {
                                         for (RecipeDisplayEntry subRecipe : subCollection.getRecipes()) {
+                                            SlotDisplay subResultSlot = subRecipe.display().result();
+                                            List<ItemStack> subStacks = subResultSlot.resolveForStacks(context);
+                                            if (subStacks.isEmpty()) continue;
 
-                                            resultSlot = subRecipe.display().result();
-
-
-                                            stacks = resultSlot.resolveForStacks(context);
-                                            ItemStack subResult = stacks.get(0);
-
-                                            //ItemStack subResult = subRecipe.getResultItem(client.world != null ? client.world.registryAccess() : null);
+                                            ItemStack subResult = subStacks.get(0);
                                             if (!subResult.isEmpty() && ItemStack.isSameItem(subResult, stack)) {
-                                                subCollection.selectRecipes(stackedContents, recipe -> true);
+                                                subCollection.selectRecipes(stackedContents, r -> true);
                                                 ingredientsList.add(subCollection);
                                                 foundReal = true;
                                                 break;
@@ -684,14 +379,13 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                                         }
                                         if (foundReal) break;
                                     }
-                                    // Если не нашли реального рецепта — добавляем фейковую коллекцию
                                     if (!foundReal) {
                                         RecipeDisplayEntry fakeRecipe = createDummySingleItemRecipe(stack);
                                         RecipeCollection fakeCollection = new RecipeCollection(List.of(fakeRecipe));
-                                        fakeCollection.selectRecipes(stackedContents, recipe -> true);
+                                        fakeCollection.selectRecipes(stackedContents, r -> true);
                                         ingredientsList.add(fakeCollection);
                                     }
-                                    break; // только один stack из одного ingredient
+                                    break;
                                 }
                             }
                         }
@@ -705,10 +399,10 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             return;
         }
 
-        // === Favorites Tab ===
+        // === вкладка избранного ===
         if (isFavoritesTabActive()) {
             collections = book.getCollection(SearchRecipeBookCategory.CRAFTING);
-            Set<ResourceLocation> favoriteItems = FavoritesManager.loadFavoriteItemIds();
+            Set<Identifier> favoriteItems = FavoritesManager.loadFavoriteItemIds();
             ContextMap context = SlotDisplayContext.fromLevel(Objects.requireNonNull(minecraft.level));
 
             for (RecipeCollection collection : collections) {
@@ -718,7 +412,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                         .anyMatch(favoriteItems::contains);
 
                 if (hasFavorite) {
-                    collection.selectRecipes(stackedContents, recipe -> true);
+                    collection.selectRecipes(stackedContents, r -> true);
                     filteredList.add(collection);
                 }
             }
@@ -728,31 +422,14 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             return;
         }
 
-        // === Обычный поиск ===
-        final String finalQuery = query;
-        final String finalModName = modName;
-
-        /*for (RecipeCollection collection : collections) {
-            if (!collection.hasAnySelected()) continue;
-
-            boolean found = collection.getRecipes().stream().anyMatch(entry ->
-                    searchIngredients
-                            ? recipeDisplayMatchesIngredientQuery(entry, finalQuery)
-                            : recipeResultMatchesQuery(entry, finalQuery, finalModName)
-            );
-            if (found) {
-                filteredList.add(collection);
-            }
-        }*/
-
-        filteredList = new ArrayList<>(RecipeIndex.fastSearch(selectedTab.getCategory(),query, modName, searchIngredients));
+        // === обычный / расширенный поиск через индекс ===
+        filteredList = new ArrayList<>(RecipeIndex.fastSearch(
+                selectedTab.getCategory(), query, modName, searchIngredients));
 
         for (RecipeCollection col : filteredList) {
             if (customToggleEnabled) {
-                col.selectRecipes(stackedContents, recipe -> true);
-            }
-            else
-            {
+                col.selectRecipes(stackedContents, r -> true);
+            } else {
                 col.selectRecipes(stackedContents, this::jEB$canDisplay);
             }
         }
@@ -761,102 +438,36 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             filteredList.removeIf(rc -> !rc.hasCraftable());
         }
 
-        if(!Objects.equals(string,rawInput))
-        {
+        if (!Objects.equals(string, rawInput)) {
             filtered = RecipeIndex.generateCustomRecipeList(rawInput);
         }
 
-        if (!filterButton.isStateTriggered()) {
+        // filterButton.getValue() == true → «только крафтимые»
+        if (!filterButton.getValue()) {
             filteredList.addAll(filtered);
         }
 
-        ///if (rawInput != null && rawInput.trim().isEmpty() && emptysearch.isEmpty())
-        ///{
-        ///        emptysearch = filteredList;
-        ///}
-
-        string=rawInput;
+        string = rawInput;
 
         recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
         ci.cancel();
     }
 
-
     @Unique
     private boolean jEB$canDisplay(RecipeDisplay display) {
         if (!(this.menu instanceof AbstractCraftingMenu craftingHandler)) {
-            // Если не является — всегда можно показывать
             return true;
         }
 
-        int i = craftingHandler.getGridWidth();
-        int j = craftingHandler.getGridHeight();
+        int w = craftingHandler.getGridWidth();
+        int h = craftingHandler.getGridHeight();
 
         if (display instanceof ShapedCraftingRecipeDisplay shaped) {
-            return i >= shaped.width() && j >= shaped.height();
+            return w >= shaped.width() && h >= shaped.height();
         } else if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
-            return i * j >= shapeless.ingredients().size();
+            return w * h >= shapeless.ingredients().size();
         } else {
             return false;
         }
     }
-
-
-
-    /*@Unique
-    private static Optional<Item> getItemFromSlotDisplay(SlotDisplay slot) {
-        if (slot instanceof SlotDisplay.StackSlotDisplay(ItemStack stack)) {
-            return Optional.of(stack.getItem());
-        }
-
-        if (slot instanceof SlotDisplay.ItemSlotDisplay(RegistryEntry<Item> item)) {
-            return Optional.of(item.value());
-        }
-
-        if (slot instanceof SlotDisplay.TagSlotDisplay(TagKey<Item> tag)) {
-
-            // В 1.21.5 можно безопасно использовать iterateEntries
-            for (RegistryEntry<Item> entry : Registries.ITEM.iterateEntries(tag)) {
-                return Optional.of(entry.value());
-            }
-        }
-
-        if (slot instanceof SlotDisplay.CompositeSlotDisplay(List<SlotDisplay> contents)) {
-            for (SlotDisplay inner : contents) {
-                Optional<Item> maybeItem = getItemFromSlotDisplay(inner);
-                if (maybeItem.isPresent()) return maybeItem;
-            }
-        }
-
-        return Optional.empty();
-    }*/
-
-    /*@Inject(method = "reset", at = @At(value = "INVOKE", target = "Ljava/util/List;clear()V", shift = At.Shift.AFTER))
-    private void addNewTab(CallbackInfo ci) {
-        RecipeBookWidget<?> recipeBookWidget = (RecipeBookWidget<?>) (Object) this;
-
-        // Получаем список вкладок через @Accessor
-        List<RecipeBookWidget.Tab> tabs = ((RecipeBookWidgetAccessor) recipeBookWidget).gettabs();
-
-        // Создаем изменяемую копию списка tabs
-        List<RecipeBookWidget.Tab> newTabs = new ArrayList<>(tabs);
-
-        // Создаем новую вкладку (Tab) с иконкой и категорией
-        ItemStack primaryIcon = new ItemStack(Items.WRITABLE_BOOK);  // Иконка из алмаза
-        RecipeBookCategory category = RecipeBookCategories.CAMPFIRE; // Категория рецептов
-        RecipeBookWidget.Tab newTab = new RecipeBookWidget.Tab(primaryIcon.getItem(), category);
-
-        // Добавляем новую кнопку вкладки в список tabButtons
-        newTabs.add(newTab);  // Добавляем новую кнопку вкладки
-
-        try {
-            java.lang.reflect.Field tabsField = RecipeBookWidget.class.getDeclaredField("tabs");
-            tabsField.setAccessible(true);  // Даем доступ к приватному полю
-            tabsField.set(recipeBookWidget, newTabs);  // Устанавливаем новое значение
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-    }*/
-
 }

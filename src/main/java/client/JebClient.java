@@ -10,7 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -37,7 +37,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-import static net.neoforged.neoforge.internal.versions.neoforge.NeoForgeVersion.MOD_ID;
+//import static net.neoforged.neoforge.internal.versions.neoforge.NeoForgeVersion.MOD_ID;
 
 //@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 @EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
@@ -61,7 +61,7 @@ public class JebClient {
 
     // Новая типизированная категория
     private static final KeyMapping.Category JEB_CATEGORY =
-            new KeyMapping.Category(ResourceLocation.fromNamespaceAndPath(Jeb.MODID, "main"));
+            new KeyMapping.Category(Identifier.fromNamespaceAndPath(Jeb.MODID, "main"));
 
     // --- Keybindings ---
     @SubscribeEvent
@@ -209,15 +209,15 @@ public class JebClient {
     }
 
     private static RecipeCollection createDummyRecipeCollection(Item item) {
-        ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item);
+        Identifier id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item);
         RecipeDisplayId recipeId = new RecipeDisplayId(9999);
 
         List<SlotDisplay> slots = List.of(
-                new SlotDisplay.TagSlotDisplay(TagKey.create(net.minecraft.core.registries.Registries.ITEM, ResourceLocation.fromNamespaceAndPath("minecraft", id.getPath())))
+                new SlotDisplay.TagSlotDisplay(TagKey.create(net.minecraft.core.registries.Registries.ITEM, Identifier.fromNamespaceAndPath("minecraft", id.getPath())))
         );
 
         SlotDisplay.ItemStackSlotDisplay resultSlot = new SlotDisplay.ItemStackSlotDisplay(new ItemStack(item, 1));
-        Item ct = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(ResourceLocation.fromNamespaceAndPath("minecraft", "crafting_table"));
+        Item ct = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", "crafting_table"));
         SlotDisplay.ItemStackSlotDisplay stationSlot = new SlotDisplay.ItemStackSlotDisplay(new ItemStack(ct));
         List<Ingredient> ingredients = List.of(Ingredient.of(item));
 
