@@ -5,7 +5,7 @@ import com.microsoft.aad.msal4j.IClientAssertion;
 import com.mojang.logging.LogUtils;
 import jeb.Jeb;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+//import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -39,7 +39,11 @@ public class RecipeListScreen extends Screen {
                 loadAllRecipes();
                 JebClient.PREGENERATED_RECIPES = generateCustomRecipeList("");
                 Minecraft.getInstance().setScreen(null);
-                Minecraft.getInstance().gui.getChat().addMessage(Component.literal("All recipes have been loaded"));
+                if (Minecraft.getInstance().player != null) {
+                    Minecraft.getInstance().player.sendSystemMessage(
+                            Component.literal("All recipes have been loaded")
+                    );
+                }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -56,10 +60,10 @@ public class RecipeListScreen extends Screen {
         }
     }
 
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        super.render(graphics, mouseX, mouseY, delta);
-    }
+    //@Override
+    //public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+    //    super.render(graphics, mouseX, mouseY, delta);
+    //}
 
     @Override
     public void onClose() {

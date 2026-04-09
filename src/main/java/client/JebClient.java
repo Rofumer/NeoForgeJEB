@@ -12,7 +12,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.*;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeBookCategories;
 import net.minecraft.world.item.crafting.RecipeBookCategory;
@@ -21,10 +25,8 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -35,15 +37,18 @@ import java.io.FileWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.Set;
 
-//import static net.neoforged.neoforge.internal.versions.neoforge.NeoForgeVersion.MOD_ID;
-
-//@EventBusSubscriber(modid = "jeb", value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 @EventBusSubscriber(modid = "jeb", value = Dist.CLIENT)
 public class JebClient {
     public static final Logger LOGGER = LoggerFactory.getLogger("JEB");
-    // --- Клиентские переменные и "кэш" ---
+
     public static Set<Item> existingResultItems = new HashSet<>();
     public static Set<Item> nonexistingResultItems = new HashSet<>();
     public static String string = "-";
@@ -59,11 +64,9 @@ public class JebClient {
     static KeyMapping keyBinding;
     public static KeyMapping keyBinding2;
 
-    // Новая типизированная категория
     private static final KeyMapping.Category JEB_CATEGORY =
             new KeyMapping.Category(Identifier.fromNamespaceAndPath(Jeb.MODID, "main"));
 
-    // --- Keybindings ---
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         keyBinding = new KeyMapping(
@@ -81,40 +84,17 @@ public class JebClient {
         event.register(keyBinding2);
     }
 
-    // --- Client tick обработчик ---
-    /*@SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Post event) {
-        Minecraft client = Minecraft.getInstance();
-        if (keyBinding != null && keyBinding.consumeClick()) {
-            if (client.screen == null) {
-                // client.setScreen(new jeb.client.RecipeListScreen());
-                // Твой custom GUI
-            }
-        }
-    }*/
-
-    // --- Сброс данных при подключении к серверу ---
-    /*@SubscribeEvent
-    public static void onClientLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        recipesLoaded = false;
-        existingResultItems.clear();
-        nonexistingResultItems.clear();
-        string = "-";
-        emptysearch.clear();
-    }*/
-
-    // --- Client setup: инициализация config и pregenerated recipes ---
     @SubscribeEvent
     public static void onClientSetup(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
         PREGENERATED_RECIPES = generateCustomRecipeList("");
         CONFIG_PATH = Paths.get(
                 Minecraft.getInstance().gameDirectory.getAbsolutePath(),
-                "config", "JEB.json"
+                "config",
+                "JEB.json"
         );
         loadConfig();
     }
 
-    // --- Сохранение/загрузка конфига ---
     public static void loadConfig() {
         try {
             if (Files.exists(CONFIG_PATH)) {
@@ -144,13 +124,13 @@ public class JebClient {
         }
     }
 
-    // --- Поисковик "фейковых" рецептов по фильтру ---
     public static List<RecipeCollection> generateCustomRecipeList(String filter) {
         List<RecipeCollection> result = new ArrayList<>();
         Minecraft client = Minecraft.getInstance();
 
         String query = "";
         String modName = null;
+
         if (filter.startsWith("@")) {
             int endIndex = filter.indexOf(" ");
             if (endIndex != -1) {
@@ -163,20 +143,30 @@ public class JebClient {
             query = filter.toLowerCase(Locale.ROOT);
         }
 
-        TooltipFlag tooltipFlag = client.options.advancedItemTooltips ? TooltipFlag.Default.ADVANCED : TooltipFlag.Default.NORMAL;
+        TooltipFlag tooltipFlag = client.options.advancedItemTooltips
+                ? TooltipFlag.Default.ADVANCED
+                : TooltipFlag.Default.NORMAL;
 
         for (Item item : nonexistingResultItems) {
-            if (item == Items.AIR) continue;
-
-            if (modName != null && !modName.isEmpty() &&
-                    !net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).getNamespace().contains(modName.toLowerCase(Locale.ROOT))) {
+            if (item == Items.AIR) {
                 continue;
             }
 
-            String name = item.getName().getString().toLowerCase(Locale.ROOT);
+            if (modName != null
+                    && !modName.isEmpty()
+                    && !net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item)
+                    .getNamespace()
+                    .contains(modName.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+
+            ItemStack defaultStack = item.getDefaultInstance();
+
+            String name = item.getName(defaultStack).getString().toLowerCase(Locale.ROOT);
             String idString = item.toString().toLowerCase(Locale.ROOT);
             String key = "";
-            Component nameComponent = item.getName();
+
+            Component nameComponent = item.getName(defaultStack);
             if (nameComponent.getContents() instanceof TranslatableContents translatable) {
                 key = translatable.getKey().toLowerCase(Locale.ROOT);
             }
@@ -188,9 +178,16 @@ public class JebClient {
 
             if (!matches && query.length() >= 3 && client.level != null) {
                 try {
-                    List<Component> tooltip = item.getDefaultInstance().getTooltipLines(Item.TooltipContext.of(client.level), client.player, tooltipFlag);
+                    List<Component> tooltip = defaultStack.getTooltipLines(
+                            Item.TooltipContext.of(client.level),
+                            client.player,
+                            tooltipFlag
+                    );
+
                     for (Component line : tooltip) {
-                        String clean = ChatFormatting.stripFormatting(line.getString()).toLowerCase(Locale.ROOT).trim();
+                        String clean = ChatFormatting.stripFormatting(line.getString())
+                                .toLowerCase(Locale.ROOT)
+                                .trim();
                         if (clean.contains(query)) {
                             matches = true;
                             break;
@@ -201,7 +198,10 @@ public class JebClient {
                 }
             }
 
-            if (!matches) continue;
+            if (!matches) {
+                continue;
+            }
+
             result.add(createDummyRecipeCollection(item));
         }
 
@@ -213,19 +213,36 @@ public class JebClient {
         RecipeDisplayId recipeId = new RecipeDisplayId(9999);
 
         List<SlotDisplay> slots = List.of(
-                new SlotDisplay.TagSlotDisplay(TagKey.create(net.minecraft.core.registries.Registries.ITEM, Identifier.fromNamespaceAndPath("minecraft", id.getPath())))
+                new SlotDisplay.TagSlotDisplay(
+                        TagKey.create(net.minecraft.core.registries.Registries.ITEM, id)
+                )
         );
 
-        SlotDisplay.ItemStackSlotDisplay resultSlot = new SlotDisplay.ItemStackSlotDisplay(new ItemStack(item, 1));
-        Item ct = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", "crafting_table"));
-        SlotDisplay.ItemStackSlotDisplay stationSlot = new SlotDisplay.ItemStackSlotDisplay(new ItemStack(ct));
+        SlotDisplay.ItemStackSlotDisplay resultSlot =
+                new SlotDisplay.ItemStackSlotDisplay(
+                        ItemStackTemplate.fromNonEmptyStack(new ItemStack(item, 1))
+                );
+
+        Item ct = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
+                Identifier.fromNamespaceAndPath("minecraft", "crafting_table")
+        );
+
+        SlotDisplay.ItemStackSlotDisplay stationSlot =
+                new SlotDisplay.ItemStackSlotDisplay(
+                        ItemStackTemplate.fromNonEmptyStack(new ItemStack(ct))
+                );
+
         List<Ingredient> ingredients = List.of(Ingredient.of(item));
 
-        ShapelessCraftingRecipeDisplay display = new ShapelessCraftingRecipeDisplay(slots, resultSlot, stationSlot);
+        ShapelessCraftingRecipeDisplay display =
+                new ShapelessCraftingRecipeDisplay(slots, resultSlot, stationSlot);
+
         OptionalInt group = OptionalInt.empty();
         RecipeBookCategory category = RecipeBookCategories.CRAFTING_MISC;
 
-        RecipeDisplayEntry entry = new RecipeDisplayEntry(recipeId, display, group, category, Optional.of(ingredients));
+        RecipeDisplayEntry entry =
+                new RecipeDisplayEntry(recipeId, display, group, category, Optional.of(ingredients));
+
         return new RecipeCollection(List.of(entry));
     }
 }
