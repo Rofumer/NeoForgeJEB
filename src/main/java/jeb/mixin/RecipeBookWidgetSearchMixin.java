@@ -226,7 +226,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                 ((ClientRecipeBookAccessor) recipeBook).getRecipes();
 
         RecipeDisplayEntry entry = recipes.get(recipe);
-        Screen screen = client.screen;
+        Screen screen = client.gui.screen();
 
         if (screen instanceof RecipeUpdateListener provider && entry != null) {
             if (!recipeCollection.isCraftable(recipe) && recipe.index() != 9999) {

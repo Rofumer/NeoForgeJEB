@@ -17,9 +17,8 @@ public class JebClientGameEvents {
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft client = Minecraft.getInstance();
         if (JebClient.keyBinding != null && keyBinding.consumeClick()) {
-            if (client.screen == null) {
-                client.setScreen(new client.RecipeListScreen());
-                // Твой custom GUI
+            if (client.gui.screen() == null) {
+                client.gui.setScreen(new client.RecipeListScreen());
             }
         }
     }
