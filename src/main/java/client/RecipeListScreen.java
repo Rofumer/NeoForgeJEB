@@ -45,8 +45,8 @@ public class RecipeListScreen extends Screen {
                 JebClient.PREGENERATED_RECIPES = generateCustomRecipeList("");
                 Minecraft.getInstance().setScreen(null);
                 if (Minecraft.getInstance().player != null) {
-                    Minecraft.getInstance().player.sendSystemMessage(
-                            Component.literal("All recipes have been loaded")
+                    Minecraft.getInstance().player.displayClientMessage(
+                            Component.literal("All recipes have been loaded"), false
                     );
                 }
             } catch (InterruptedException e) {
@@ -58,8 +58,8 @@ public class RecipeListScreen extends Screen {
                     try {
                         showAllRecipes();
                         if (Minecraft.getInstance().player != null) {
-                            Minecraft.getInstance().player.sendSystemMessage(
-                                    Component.literal("Recipes dumped to recipes_output.txt")
+                            Minecraft.getInstance().player.displayClientMessage(
+                                    Component.literal("Recipes dumped to recipes_output.txt"), false
                             );
                         }
                     } catch (InterruptedException e) {

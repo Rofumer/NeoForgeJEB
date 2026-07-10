@@ -42,8 +42,8 @@ public class RecipeLoader {
     private static int cachedVanillaCTID = -1;
 
     private static final Pattern CT_RESULT_PATTERN = Pattern.compile(
-        "result=ItemStackSlotDisplay\\[stack=ItemStackTemplate\\[item=Reference\\{ResourceKey\\[minecraft:item / minecraft:crafting_table\\]" +
-        ".*?NetworkID:RecipeDisplayId\\[index=(\\d+)\\]"
+        "result=StackSlotDisplay\\[stack=\\d+ minecraft:crafting_table\\]" +
+        ".*?NetworkID:NetworkRecipeId\\[index=(\\d+)\\]"
     );
 
     private static void loadVanillaStats() {
@@ -85,13 +85,13 @@ public class RecipeLoader {
 
     private static SlotDisplay.ItemStackSlotDisplay stackDisplay(Item item) {
         return new SlotDisplay.ItemStackSlotDisplay(
-                ItemStackTemplate.fromNonEmptyStack(new ItemStack(item))
+                new ItemStack(item)
         );
     }
 
     private static SlotDisplay.ItemStackSlotDisplay stackDisplay(Item item, int count) {
         return new SlotDisplay.ItemStackSlotDisplay(
-                ItemStackTemplate.fromNonEmptyStack(new ItemStack(item, count))
+                new ItemStack(item, count)
         );
     }
 

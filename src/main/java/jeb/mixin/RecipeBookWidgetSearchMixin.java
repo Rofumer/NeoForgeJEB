@@ -249,7 +249,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         if (jeb$backButton != null) {
             jeb$backButton.visible = jeb$hasHistory();
             if (jeb$backButton.visible) {
-                jeb$backButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
+                jeb$backButton.render(graphics, mouseX, mouseY, partialTick);
             }
         }
     }
