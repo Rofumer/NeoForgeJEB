@@ -24,6 +24,7 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import net.minecraft.world.inventory.RecipeBookType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -37,10 +38,14 @@ import java.io.FileWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -57,6 +62,15 @@ public class JebClient {
     public static boolean recipesLoaded = false;
     public static boolean customToggleEnabled = true;
     public static List<RecipeCollection> PREGENERATED_RECIPES;
+
+    // Последний текст поиска по каждому типу книги рецептов (верстак/печь/...).
+    // Живёт только в памяти клиента — переживает закрытие/переоткрытие экрана,
+    // но не переживает перезапуск игры.
+    public static final Map<RecipeBookType, String> lastSearchByType = new HashMap<>();
+
+    // Стек предыдущих поисковых запросов (кнопка "назад") по каждому типу книги
+    // рецептов — по той же причине хранится тут, а не в самом компоненте.
+    public static final Map<RecipeBookType, Deque<SearchHistoryEntry>> searchHistoryByType = new HashMap<>();
 
     public static Path CONFIG_PATH;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
