@@ -2,5 +2,6 @@
   "key.category.jeb.main": "JEB (Just Enough Book)",
   "items.craftsfromitem": "Right Click: Uses • Middle Click: Ingredients",
   "key.jeb.optional_recipes_loading_screen": "Optional Recipes Loading Screen",
-  "key.jeb.add_remove_favorite_recipes": "Add/Remove Favorite Recipe"
+  "key.jeb.add_remove_favorite_recipes": "Add/Remove Favorite Recipe",
+  "jeb.recipe_book.back": "Back to previous search"
 }
