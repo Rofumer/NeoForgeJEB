@@ -19,7 +19,6 @@ public class JebClientGameEvents {
         if (JebClient.keyBinding != null && keyBinding.consumeClick()) {
             if (client.screen == null) {
                 client.setScreen(new client.RecipeListScreen());
-                // Твой custom GUI
             }
         }
     }
