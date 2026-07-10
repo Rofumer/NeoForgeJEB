@@ -3,7 +3,6 @@ package jeb.mixin;
 import client.JebClient;
 import client.RecipeIndex;
 import client.RecipeLoader;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.context.ContextMap;
@@ -19,7 +18,6 @@ import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundRecipeBookAddPacket;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -34,30 +32,6 @@ import static client.RecipeIndex.*;
 
 @Mixin(ClientPacketListener.class)
 public abstract class ClientPlayNetworkHandlerMixin {
-
-    @Unique
-    private static final Map<String, Integer> VANILLA_RECIPE_COUNTS = Map.of(
-            "1.21.4", 1358,
-            "1.21.5", 1361,
-            "1.21.6", 1395,
-            "1.21.7", 1395,
-            "1.21.8", 1395,
-            "1.21.9", 1449,
-            "1.21.10", 1449,
-            "1.21.11", 1459
-    );
-
-    @Unique
-    private static final Map<String, Integer> VANILLA_CT_ID = Map.of(
-            "1.21.4", 259,
-            "1.21.5", 259,
-            "1.21.6", 262,
-            "1.21.7", 262,
-            "1.21.8", 262,
-            "1.21.9", 283,
-            "1.21.10", 283,
-            "1.21.11", 284
-    );
 
     @Inject(
             method = "handleRecipeBookAdd",
@@ -116,12 +90,8 @@ public abstract class ClientPlayNetworkHandlerMixin {
 
             if(client.JebClient.recipesLoaded) return;
 
-
-            String version = SharedConstants.getCurrentVersion().name(); // примерная функция
-            //String version = SharedConstants.getCurrentVersion().getName(); // примерная функция
-
-            int vanillaMaxRecipes = VANILLA_RECIPE_COUNTS.getOrDefault(version, 1358);
-            int vanillaCTID = VANILLA_CT_ID.getOrDefault(version, 259);
+            int vanillaMaxRecipes = RecipeLoader.getVanillaRecipeCount();
+            int vanillaCTID = RecipeLoader.getVanillaCTID();
 
             Minecraft client = Minecraft.getInstance();
 
