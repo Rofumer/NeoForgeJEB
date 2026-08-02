@@ -453,9 +453,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                     if (stacks.isEmpty()) continue;
 
                     ItemStack result = stacks.get(0);
-                    String resultName = BuiltInRegistries.ITEM.getKey(result.getItem())
-                            .getPath()
-                            .toLowerCase(Locale.ROOT);
+                    String resultName = result.getHoverName().getString().toLowerCase(Locale.ROOT).trim();
 
                     if (resultName.equals(query)) {
                         for (Ingredient ingredient : recipe1.craftingRequirements().get()) {
