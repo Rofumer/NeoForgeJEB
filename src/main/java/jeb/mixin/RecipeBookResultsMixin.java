@@ -71,9 +71,11 @@ public class RecipeBookResultsMixin {
 
             if (p_447008_.button() == 2) {
                 ItemStack stack = hovered.getDisplayStack();
-                //String itemName = stack.getItem().getName().getString();
-                String itemName = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().toLowerCase(Locale.ROOT);
-                String searchText = "~" + itemName.toLowerCase(Locale.ROOT);
+                String hoverName = stack.getHoverName().getString().toLowerCase(Locale.ROOT).trim();
+                String itemName = hoverName.isEmpty()
+                        ? BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().toLowerCase(Locale.ROOT)
+                        : hoverName;
+                String searchText = "~" + itemName;
 
                 ((RecipeBookWidgetBridge) parent).jeb$pushHistory(
                         ((RecipeBookWidgetAccessor) parent).getSearchField().getValue(),
