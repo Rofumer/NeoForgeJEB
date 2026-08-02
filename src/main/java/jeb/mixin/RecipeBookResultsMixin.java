@@ -1,11 +1,11 @@
 package jeb.mixin;
 
+import client.RecipeSearchQueries;
 import jeb.accessor.ClientRecipeBookAccessor;
 import jeb.accessor.RecipeBookWidgetBridge;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.*;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.RecipeBookCategory;
 import net.minecraft.world.item.crafting.display.*;
@@ -24,7 +24,6 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 @Mixin(RecipeBookPage.class)
@@ -71,11 +70,7 @@ public class RecipeBookResultsMixin {
 
             if (p_447008_.button() == 2) {
                 ItemStack stack = hovered.getDisplayStack();
-                String hoverName = stack.getHoverName().getString().toLowerCase(Locale.ROOT).trim();
-                String itemName = hoverName.isEmpty()
-                        ? BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().toLowerCase(Locale.ROOT)
-                        : hoverName;
-                String searchText = "~" + itemName;
+                String searchText = RecipeSearchQueries.forResult(stack);
 
                 ((RecipeBookWidgetBridge) parent).jeb$pushHistory(
                         ((RecipeBookWidgetAccessor) parent).getSearchField().getValue(),
@@ -93,8 +88,7 @@ public class RecipeBookResultsMixin {
 
             if (p_447008_.button() == 1) {
                 ItemStack stack = hovered.getDisplayStack();
-                String itemName = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(); // Локализованное имя (например, "Булыжник")
-                String searchText = "#" + itemName.toLowerCase(Locale.ROOT);
+                String searchText = RecipeSearchQueries.forIngredient(stack);
 
                 ((RecipeBookWidgetBridge) parent).jeb$pushHistory(
                         ((RecipeBookWidgetAccessor) parent).getSearchField().getValue(),
