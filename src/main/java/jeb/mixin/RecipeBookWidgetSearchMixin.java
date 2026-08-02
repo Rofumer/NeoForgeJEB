@@ -63,6 +63,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
@@ -524,6 +525,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             }
 
             filteredList.addAll(ingredientsList);
+            jEB$sortCraftableFirst(filteredList);
             recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
             ci.cancel();
             return;
@@ -546,6 +548,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                 }
             }
 
+            jEB$sortCraftableFirst(filteredList);
             recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
             ci.cancel();
             return;
@@ -576,8 +579,14 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
         string = rawInput;
 
+        jEB$sortCraftableFirst(filteredList);
         recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
         ci.cancel();
+    }
+
+    @Unique
+    private static void jEB$sortCraftableFirst(List<RecipeCollection> collections) {
+        collections.sort(Comparator.comparing(RecipeCollection::hasCraftable).reversed());
     }
 
     @Unique
