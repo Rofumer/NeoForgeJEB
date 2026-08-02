@@ -491,6 +491,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             }
 
             filteredList.addAll(ingredientsList);
+            jEB$sortCraftableFirst(filteredList);
             recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
             ci.cancel();
             return;
@@ -514,6 +515,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                 }
             }
 
+            jEB$sortCraftableFirst(filteredList);
             recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
             ci.cancel();
             return;
@@ -546,8 +548,14 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
         string = rawInput;
 
+        jEB$sortCraftableFirst(filteredList);
         recipeBookPage.updateCollections(filteredList, resetCurrentPage, filteringCraftable);
         ci.cancel();
+    }
+
+    @Unique
+    private static void jEB$sortCraftableFirst(List<RecipeCollection> collections) {
+        collections.sort(Comparator.comparing(RecipeCollection::hasCraftable).reversed());
     }
 
     @Unique
