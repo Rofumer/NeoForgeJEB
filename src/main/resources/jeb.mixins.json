@@ -15,6 +15,7 @@
     "AnimatedResultButtonMixin",
     "ClientPlayNetworkHandlerMixin",
     "RecipeAlternativesWidgetMixin",
+    "RecipeBookHoverHotkeyMixin",
     "RecipeBookResultsAccessor",
     "RecipeBookTabButtonMixin",
     "RecipeBookWidgetAccessor",
