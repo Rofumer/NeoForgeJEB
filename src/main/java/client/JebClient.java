@@ -68,6 +68,8 @@ public class JebClient {
 
     static KeyMapping keyBinding;
     public static KeyMapping keyBinding2;
+    public static KeyMapping keyViewRecipe;
+    public static KeyMapping keyViewUses;
 
     // Новая типизированная категория
     private static final KeyMapping.Category JEB_CATEGORY =
@@ -89,6 +91,20 @@ public class JebClient {
                 JEB_CATEGORY
         );
         event.register(keyBinding2);
+
+        keyViewRecipe = new KeyMapping(
+                "key.jeb.view_recipe",
+                GLFW.GLFW_KEY_R,
+                JEB_CATEGORY
+        );
+        event.register(keyViewRecipe);
+
+        keyViewUses = new KeyMapping(
+                "key.jeb.view_uses",
+                GLFW.GLFW_KEY_U,
+                JEB_CATEGORY
+        );
+        event.register(keyViewUses);
     }
 
     // --- Client tick обработчик ---
