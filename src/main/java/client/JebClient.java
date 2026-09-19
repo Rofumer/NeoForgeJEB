@@ -29,7 +29,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,28 +87,28 @@ public class JebClient {
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         keyBinding = new KeyMapping(
                 "key.jeb.optional_recipes_loading_screen",
-                GLFW.GLFW_KEY_APOSTROPHE,
+                InputConstants.KEY_APOSTROPHE,
                 JEB_CATEGORY
         );
         event.register(keyBinding);
 
         keyBinding2 = new KeyMapping(
                 "key.jeb.add_remove_favorite_recipes",
-                GLFW.GLFW_KEY_A,
+                InputConstants.KEY_A,
                 JEB_CATEGORY
         );
         event.register(keyBinding2);
 
         keyViewRecipe = new KeyMapping(
                 "key.jeb.view_recipe",
-                GLFW.GLFW_KEY_R,
+                InputConstants.KEY_R,
                 JEB_CATEGORY
         );
         event.register(keyViewRecipe);
 
         keyViewUses = new KeyMapping(
                 "key.jeb.view_uses",
-                GLFW.GLFW_KEY_U,
+                InputConstants.KEY_U,
                 JEB_CATEGORY
         );
         event.register(keyViewUses);
@@ -243,7 +243,7 @@ public class JebClient {
         RecipeDisplayId recipeId = new RecipeDisplayId(9999);
 
         List<SlotDisplay> slots = List.of(
-                new SlotDisplay.TagSlotDisplay(
+                RecipeLoader.tagSlot(
                         TagKey.create(net.minecraft.core.registries.Registries.ITEM, id)
                 )
         );

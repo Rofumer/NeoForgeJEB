@@ -330,7 +330,7 @@ public class RecipeIndex {
         RecipeDisplayId recipeId = new RecipeDisplayId(9999);
 
         List<SlotDisplay> slots = List.of(
-                new SlotDisplay.TagSlotDisplay(
+                RecipeLoader.tagSlot(
                         TagKey.create(net.minecraft.core.registries.Registries.ITEM, id)
                 )
         );

@@ -1,6 +1,7 @@
 package jeb.mixin;
 
 import client.RecipeSearchQueries;
+import com.mojang.blaze3d.platform.InputConstants;
 import jeb.accessor.ClientRecipeBookAccessor;
 import jeb.accessor.RecipeBookWidgetBridge;
 import net.minecraft.client.Minecraft;
@@ -68,7 +69,7 @@ public class RecipeBookResultsMixin {
         //if (hovered.mouseClicked(mouseX, mouseY, button)) {
         if (hovered != null) {
 
-            if (p_447008_.button() == 2) {
+            if (p_447008_.button() == InputConstants.MOUSE_BUTTON_MIDDLE) {
                 ItemStack stack = hovered.getDisplayStack();
                 String searchText = RecipeSearchQueries.forResult(stack);
 
@@ -86,7 +87,7 @@ public class RecipeBookResultsMixin {
                 cir.cancel();
             }
 
-            if (p_447008_.button() == 1) {
+            if (p_447008_.button() == InputConstants.MOUSE_BUTTON_RIGHT) {
                 ItemStack stack = hovered.getDisplayStack();
                 String searchText = RecipeSearchQueries.forIngredient(stack);
 
@@ -105,7 +106,7 @@ public class RecipeBookResultsMixin {
             }
 
 
-            if (p_447008_.button() == 0) {
+            if (p_447008_.button() == InputConstants.MOUSE_BUTTON_LEFT) {
 
                 if (!(Minecraft.getInstance().player.containerMenu instanceof AbstractCraftingMenu)) {
                     // Не наш контейнер — не трогаем, пусть работает обычный код!

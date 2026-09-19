@@ -3,7 +3,6 @@ package jeb.mixin;
 import client.JebClient;
 import client.RecipeSearchQueries;
 import jeb.accessor.RecipeBookWidgetBridge;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
@@ -35,7 +34,7 @@ public abstract class RecipeBookHoverHotkeyMixin {
             return;
         }
 
-        Slot hovered = ((AbstractContainerScreen<?>) (Object) this).getSlotUnderMouse();
+        Slot hovered = ((AbstractContainerScreenAccessor) this).jeb$getHoveredSlot();
         if (hovered == null || !hovered.hasItem()) {
             return;
         }

@@ -3,6 +3,7 @@ package jeb.mixin;
 import client.FavoritesManager;
 import client.JebClient;
 import client.RecipeIndex;
+import client.RecipeLoader;
 import client.SearchHistoryEntry;
 import jeb.accessor.AnimatedResultButtonExtension;
 import jeb.accessor.ClientRecipeBookAccessor;
@@ -416,7 +417,7 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
         RecipeDisplayId recipeId = new RecipeDisplayId(9999);
 
         List<SlotDisplay> slots = List.of(
-                new SlotDisplay.TagSlotDisplay(TagKey.create(Registries.ITEM, id))
+                RecipeLoader.tagSlot(TagKey.create(Registries.ITEM, id))
         );
 
         SlotDisplay.ItemStackSlotDisplay resultSlot = new SlotDisplay.ItemStackSlotDisplay(
