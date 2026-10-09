@@ -13,6 +13,7 @@
     "AbstractCraftingRecipeBookWidgetMixin",
     "AbstractWidgetAccessor",
     "AnimatedResultButtonMixin",
+    "MultiPlayerGameModeMixin",
     "ClientPlayNetworkHandlerMixin",
     "RecipeAlternativesWidgetMixin",
     "RecipeBookHoverHotkeyMixin",
