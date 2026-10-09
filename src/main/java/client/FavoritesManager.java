@@ -7,7 +7,12 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
-import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -22,7 +27,7 @@ public class FavoritesManager {
         try {
             if (!Files.exists(FAVORITES_PATH)) return result;
 
-            JsonArray array = GSON.fromJson(Files.newBufferedReader(FAVORITES_PATH), JsonArray.class);
+            JsonArray array = readFavorites();
             String server = getServerName();
 
             for (JsonElement el : array) {
@@ -47,7 +52,7 @@ public class FavoritesManager {
 
             if (!Files.exists(FAVORITES_PATH)) return;
 
-            JsonArray favorites = GSON.fromJson(Files.newBufferedReader(FAVORITES_PATH), JsonArray.class);
+            JsonArray favorites = readFavorites();
             JsonArray newFavorites = new JsonArray();
             boolean removed = false;
 
@@ -65,10 +70,7 @@ public class FavoritesManager {
                 newFavorites.add(obj);
             }
 
-            Files.createDirectories(FAVORITES_PATH.getParent());
-            try (FileWriter writer = new FileWriter(FAVORITES_PATH.toFile())) {
-                GSON.toJson(newFavorites, writer);
-            }
+            writeFavorites(newFavorites);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -81,9 +83,7 @@ public class FavoritesManager {
             Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
             String nbtString = getSerializedNbt(stack);
 
-            JsonArray favorites = Files.exists(FAVORITES_PATH)
-                    ? GSON.fromJson(Files.newBufferedReader(FAVORITES_PATH), JsonArray.class)
-                    : new JsonArray();
+            JsonArray favorites = readFavorites();
 
             boolean alreadyExists = false;
 
@@ -110,15 +110,46 @@ public class FavoritesManager {
                 favorites.add(favoriteEntry);
                 favorites = sortFavorites(favorites);
 
-                Files.createDirectories(FAVORITES_PATH.getParent());
-                try (FileWriter writer = new FileWriter(FAVORITES_PATH.toFile())) {
-                    GSON.toJson(favorites, writer);
-                }
+                writeFavorites(favorites);
             }
 
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    // Старые версии писали файл через FileWriter в системной кодировке (на Windows с Java 17 это cp1251),
+    // поэтому кириллические имена миров ломали чтение в UTF-8. Читаем UTF-8, иначе — системную кодировку.
+    private static JsonArray readFavorites() throws IOException {
+        if (!Files.exists(FAVORITES_PATH)) return new JsonArray();
+
+        byte[] bytes = Files.readAllBytes(FAVORITES_PATH);
+        String text;
+        try {
+            text = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes))
+                    .toString();
+        } catch (CharacterCodingException e) {
+            text = new String(bytes, nativeCharset());
+        }
+
+        JsonArray array = GSON.fromJson(text, JsonArray.class);
+        return array != null ? array : new JsonArray();
+    }
+
+    private static void writeFavorites(JsonArray favorites) throws IOException {
+        Files.createDirectories(FAVORITES_PATH.getParent());
+        Files.writeString(FAVORITES_PATH, GSON.toJson(favorites), StandardCharsets.UTF_8);
+    }
+
+    private static Charset nativeCharset() {
+        try {
+            String name = System.getProperty("native.encoding");
+            if (name != null) return Charset.forName(name);
+        } catch (Exception ignored) {}
+        return Charset.defaultCharset();
     }
 
     private static JsonArray sortFavorites(JsonArray favorites) {
