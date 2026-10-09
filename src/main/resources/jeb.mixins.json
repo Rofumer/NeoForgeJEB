@@ -12,6 +12,7 @@
     "AbstractCraftingRecipeBookWidgetMixin",
     "AbstractWidgetAccessor",
     "AnimatedResultButtonMixin",
+    "MultiPlayerGameModeMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientRecipeBookMixin",
     "RecipeAlternativesWidgetMixin",

@@ -17,6 +17,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
@@ -108,6 +109,10 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
 
     @Shadow
     private EditBox searchBox;
+
+    @Shadow
+    @Final
+    private GhostSlots ghostSlots;
 
     @Shadow
     @Final
@@ -333,6 +338,15 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
             if (!recipeCollection.isCraftable(recipe) && recipe.index() != 9999) {
                 provider.fillGhostRecipe(entry.display());
             }
+        }
+    }
+
+    // Не показываем ghost-рецепт, если он не влезает в сетку (например 3x3 в инвентаре 2x2)
+    @Inject(method = "fillGhostRecipe(Lnet/minecraft/world/item/crafting/display/RecipeDisplay;)V", at = @At("HEAD"), cancellable = true)
+    private void jeb$skipGhostIfTooBig(RecipeDisplay recipe, CallbackInfo ci) {
+        if (!JebClient.fitsCraftingGrid(this.menu, recipe)) {
+            this.ghostSlots.clear();
+            ci.cancel();
         }
     }
 
