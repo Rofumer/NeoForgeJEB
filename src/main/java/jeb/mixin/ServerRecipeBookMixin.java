@@ -14,6 +14,7 @@ import net.minecraft.stats.ServerRecipeBook;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,7 +28,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Mixin(ServerRecipeBook.class)
 public abstract class ServerRecipeBookMixin {
@@ -42,6 +47,9 @@ public abstract class ServerRecipeBookMixin {
     // С запасом ниже лимита фрейма 2 МБ, даже если сжатие на сервере выключено
     @Unique
     private static final int MAX_CHUNK_BYTES = 1 << 20;
+
+    @Unique
+    private static final Set<String> REPORTED_SKIPS = ConcurrentHashMap.newKeySet();
 
     @Inject(
             method = "sendInitialRecipeBook",
@@ -81,14 +89,24 @@ public abstract class ServerRecipeBookMixin {
         List<ClientboundRecipeBookAddPacket.Entry> chunk = new ArrayList<>();
         int chunkBytes = 0;
         boolean first = true;
+        // Пропуски считаем по классу display и пишем в лог одной строкой на тип без стектрейса:
+        // стектрейс на каждый рецепт в больших сборках вешает тик сервера (watchdog, 180 с).
+        Map<String, Integer> skipped = new LinkedHashMap<>();
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), player.registryAccess(), player.connection.getConnectionType());
         try {
             for (ClientboundRecipeBookAddPacket.Entry entry : allEntries) {
+                RecipeDisplay display = entry.contents().display();
+                // Тип display, не зарегистрированный в minecraft:recipe_display (так делает, например,
+                // Ender IO), кодироваться не может — отсекаем его сразу, без дорогого исключения.
+                if (BuiltInRegistries.RECIPE_DISPLAY.getId(display.type()) == -1) {
+                    skipped.merge(display.getClass().getName(), 1, Integer::sum);
+                    continue;
+                }
                 buf.clear();
                 try {
                     ClientboundRecipeBookAddPacket.Entry.STREAM_CODEC.encode(buf, entry);
                 } catch (Exception e) {
-                    LOGGER.warn("[JEB] Skipping recipe display that cannot be encoded: {}", entry.contents().display(), e);
+                    skipped.merge(display.getClass().getName() + " (" + e + ")", 1, Integer::sum);
                     continue;
                 }
                 int size = buf.writerIndex();
@@ -103,6 +121,13 @@ public abstract class ServerRecipeBookMixin {
             }
         } finally {
             buf.release();
+        }
+
+        // Логируем один раз за запуск сервера, а не при каждом входе игрока
+        for (Map.Entry<String, Integer> e : skipped.entrySet()) {
+            if (REPORTED_SKIPS.add(e.getKey())) {
+                LOGGER.warn("[JEB] Skipped {} recipe display(s) that cannot be sent to clients: {}", e.getValue(), e.getKey());
+            }
         }
 
         // Отправляем остаток (и пустой replace-пакет, если рецептов нет вообще)
