@@ -500,7 +500,8 @@ public abstract class RecipeBookWidgetSearchMixin<T extends RecipeBookMenu> impl
                     ItemStack result = stacks.get(0);
                     String resultName = result.getHoverName().getString().toLowerCase(Locale.ROOT).trim();
 
-                    if (resultName.equals(query)) {
+                    // У спец-рецептов (и части рецептов модов/сервера) craftingRequirements пустой
+                    if (resultName.equals(query) && recipe1.craftingRequirements().isPresent()) {
                         for (Ingredient ingredient : recipe1.craftingRequirements().get()) {
                             for (ItemStack stack : ingredient.display().resolveForStacks(context)) {
                                 if (!stack.isEmpty()) {
