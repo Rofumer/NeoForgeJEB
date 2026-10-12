@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "jeb.refmap.json",
   "mixins": [
+    "ServerGamePacketListenerMixin",
     "ServerRecipeBookMixin"
   ],
   "client": [
