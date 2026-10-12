@@ -23,6 +23,7 @@
     "RecipeBookTabButtonMixin",
     "RecipeBookWidgetAccessor",
     "RecipeBookWidgetSearchMixin",
+    "RecipeDisplayEntryMixin",
     "RecipeResultCollectionMixin"
   ],
   "injectors": {
